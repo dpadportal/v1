@@ -12,6 +12,11 @@ import {
 import { sha256 } from "../lib/crypto";
 import { generateArtaReference, isUniqueConstraintError } from "../lib/arta";
 import { sendConfirmationEmail } from "../lib/email";
+import { createRateLimiter, clientIp } from "../lib/rate-limit";
+
+const OTP_MAX_ATTEMPTS = 5;
+const SUBMIT_RATE_LIMIT = 5;
+const SUBMIT_RATE_WINDOW = 60;
 
 const NATURE_LABELS: Record<NatureOfRequest, string> = {
   "concern-complaint": "Concern/Complaint",
@@ -67,6 +72,9 @@ submit.post("/", async (c) => {
   if (!description) return c.json({ ok: false, error: "Description is required." }, 400);
   if (description.length > MAX_LENGTHS.description) return c.json({ ok: false, error: "Description must be 4000 characters or fewer." }, 400);
   if (fullName.length > MAX_LENGTHS.fullName) return c.json({ ok: false, error: "Full name must be 100 characters or fewer." }, 400);
+  if (rawPhone.length > MAX_LENGTHS.cellphone) {
+    return c.json({ ok: false, error: "Cellphone number is too long." }, 400);
+  }
 
   let phone: string | null = null;
   if (rawPhone) {
@@ -84,16 +92,31 @@ submit.post("/", async (c) => {
 
   const { DB, KV } = c.env;
 
+  const submitLimiter = createRateLimiter(KV, "rl:submit", SUBMIT_RATE_LIMIT, SUBMIT_RATE_WINDOW);
+  const submitCheck = await submitLimiter.check(clientIp(c));
+  if (!submitCheck.allowed) {
+    return c.json({ ok: false, error: "Too many submissions. Please try again shortly." }, 429);
+  }
+
   const otpKey = `otp:${email}`;
+  const attemptsKey = `otp-attempts:${email}`;
   const storedHash = await KV.get(otpKey);
   if (!storedHash) {
     return c.json({ ok: false, error: "No code was requested for this email, or it has expired. Request a new code." }, 400);
   }
   const otpHash = await sha256(`${email}:${otpCode}`);
   if (storedHash !== otpHash) {
+    const attempts = Number((await KV.get(attemptsKey)) ?? "0") + 1;
+    if (attempts >= OTP_MAX_ATTEMPTS) {
+      await KV.delete(otpKey);
+      await KV.delete(attemptsKey);
+      return c.json({ ok: false, error: "Too many incorrect attempts. Request a new code." }, 400);
+    }
+    await KV.put(attemptsKey, String(attempts), { expirationTtl: 300 });
     return c.json({ ok: false, error: "Incorrect code. Please try again." }, 400);
   }
   await KV.delete(otpKey);
+  await KV.delete(attemptsKey);
 
   const captchaKey = `captcha:${captchaSessionId}`;
   const captchaStored = await KV.get(captchaKey);

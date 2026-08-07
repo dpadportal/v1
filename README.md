@@ -52,11 +52,25 @@ npm run db:init:remote
 wrangler secret put RESEND_API_KEY
 ```
 
+> The schema (`schema.sql`) is **destructive** (`DROP TABLE IF EXISTS tickets`).
+> It must only be applied manually — never automatically.
+
 4. Deploy:
 
 ```bash
 npm run deploy
 ```
+
+### Continuous deployment (GitHub Actions)
+
+Pushes to `main` trigger an automatic deploy via `.github/workflows/deploy.yml`.
+Add these repository secrets on GitHub (Settings → Secrets and variables → Actions):
+
+- `CLOUDFLARE_API_TOKEN` — Cloudflare API token with `Workers Scripts: Edit` permission
+- `CLOUDFLARE_ACCOUNT_ID` — your Cloudflare account ID
+
+The workflow runs `npm ci`, `npm run typecheck`, and `wrangler deploy`. It does
+**not** run database migrations; apply `schema.sql` manually.
 
 ## Data model (`tickets`)
 

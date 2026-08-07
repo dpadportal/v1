@@ -7,14 +7,21 @@ export async function sha256(text: string): Promise<string> {
 }
 
 export function randomDigits(length: number): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(length));
   let out = "";
-  for (let i = 0; i < length; i++) {
-    out += String(bytes[i] % 10);
+  while (out.length < length) {
+    const bytes = crypto.getRandomValues(new Uint8Array(length * 2));
+    for (let i = 0; i < bytes.length && out.length < length; i++) {
+      if (bytes[i] < 250) out += String(bytes[i] % 10);
+    }
   }
   return out;
 }
 
 export function randomInt(maxExclusive: number): number {
-  return crypto.getRandomValues(new Uint32Array(1))[0] % maxExclusive;
+  if (maxExclusive <= 0) throw new Error("maxExclusive must be greater than 0");
+  const limit = 0x100000000 - (0x100000000 % maxExclusive);
+  while (true) {
+    const value = crypto.getRandomValues(new Uint32Array(1))[0];
+    if (value < limit) return value % maxExclusive;
+  }
 }

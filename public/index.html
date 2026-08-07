@@ -447,6 +447,7 @@
       function checkSubmitReady() {
         var ready =
           EMAIL_RE.test(emailInput.value.trim()) &&
+          otpSentTo === emailInput.value.trim().toLowerCase() &&
           otpInput.value.trim().length === 6 &&
           document.getElementById("school_name").value.trim() !== "" &&
           document.getElementById("nature_of_request").value !== "" &&
@@ -470,6 +471,14 @@
       emailInput.addEventListener("input", function () {
         sendOtpBtn.disabled = !EMAIL_RE.test(emailInput.value.trim());
         showError(otpStatus, "");
+        if (otpSentTo && otpSentTo !== emailInput.value.trim().toLowerCase()) {
+          otpField.classList.add("hidden");
+          otpInput.value = "";
+          otpSentTo = null;
+          clearInterval(countdownTimer);
+          sendOtpBtn.querySelector("span").textContent = t("form.sendCode");
+        }
+        checkSubmitReady();
       });
 
       function resetFormState() {
@@ -482,9 +491,9 @@
         document.getElementById("captchaProblem").textContent = "\u2014";
         document.getElementById("descCount").textContent = "0";
         showFormError("");
-        sendOtpBtn.disabled = true;
+        clearInterval(countdownTimer);
         sendOtpBtn.querySelector("span").textContent = t("form.sendCode");
-        sendOtpBtn.disabled = false;
+        sendOtpBtn.disabled = !EMAIL_RE.test(emailInput.value.trim());
         checkSubmitReady();
       }
 
@@ -508,7 +517,7 @@
             sendOtpBtn.disabled = false;
             return;
           }
-          otpSentTo = email;
+          otpSentTo = email.toLowerCase();
           otpField.classList.remove("hidden");
           showError(otpStatus, t("err.codeSent"));
           startOtpCountdown();
@@ -634,8 +643,13 @@
           if (!data.found) { showError(trackError, data.error || t("track.notFound")); return; }
 
           var ticket = data.ticket;
+          var NATURE_KEYS = {
+            "concern-complaint": "form.natureComplaint",
+            "request": "form.natureRequest",
+            "inquiry": "form.natureInquiry"
+          };
           document.getElementById("trackRefOut").textContent = ticket.arta_reference_no;
-          document.getElementById("trackNature").textContent = t("form.nature" + cap(ticket.nature_of_request)) || ticket.nature_of_request;
+          document.getElementById("trackNature").textContent = t(NATURE_KEYS[ticket.nature_of_request] || ticket.nature_of_request);
           document.getElementById("trackDate").textContent = new Date(ticket.created_at + "Z").toLocaleString();
           var badge = document.getElementById("trackStatusBadge");
           badge.textContent = t("status." + ticket.status);
@@ -652,10 +666,7 @@
         }
       }
 
-      function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
-
-      applyI18n();
-    })();
+      applyI18n();    })();
   </script>
 </body>
 </html>

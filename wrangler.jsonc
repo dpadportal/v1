@@ -11,13 +11,13 @@
     {
       "binding": "DB",
       "database_name": "arta-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "048727ae-ed62-4234-b7c9-18da11a4ae3a"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "id": "984e6eb1031b450ca39b271da4026dbb"
     }
   ],
   "vars": {
