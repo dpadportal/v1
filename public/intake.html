@@ -64,28 +64,32 @@
       .no-print { display: none !important; }
       .intake-sheet { box-shadow: none; border: none; max-width: 100%; }
     }
+    @media (max-width: 480px) {
+      .field-label { padding: 8px 10px; }
+      .field-value { padding: 8px 10px; }
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-900 antialiased">
   <div class="no-print sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-gray-200">
-    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <img src="/sdo.png" alt="Logo" class="h-10 w-10 rounded-lg shadow" />
-        <div>
-          <p class="font-bold text-lg text-brand-dark leading-tight">Clients' Feedback Intake Sheet</p>
-          <p class="text-xs text-gray-500 leading-tight" id="subtitleLine">Loading ticket…</p>
+    <div class="max-w-4xl mx-auto px-3 md:px-4 py-2 md:py-3 flex items-center justify-between gap-2 flex-wrap">
+      <div class="flex items-center gap-2 md:gap-3 min-w-0">
+        <img src="/sdo.png" alt="Logo" class="h-8 w-8 md:h-10 md:w-10 rounded-lg shadow shrink-0" />
+        <div class="min-w-0">
+          <p class="font-bold text-sm md:text-lg text-brand-dark leading-tight truncate">Clients' Feedback Intake Sheet</p>
+          <p class="text-xs text-gray-500 leading-tight truncate" id="subtitleLine">Loading ticket…</p>
         </div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
         <button id="printBtn" type="button"
-          class="rounded-lg bg-gray-200 font-semibold px-4 py-2 text-sm hover:bg-gray-300 transition">
+          class="rounded-lg bg-gray-200 font-semibold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-300 transition">
           Print
         </button>
         <button id="pdfBtn" type="button"
-          class="rounded-lg bg-brand text-white font-bold px-4 py-2 text-sm hover:bg-brand-dark transition">
+          class="rounded-lg bg-brand text-white font-bold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-brand-dark transition">
           Download as PDF
         </button>
-        <a href="/admin" class="rounded-lg border border-gray-300 bg-white font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition">
+        <a href="/admin" class="rounded-lg border border-gray-300 bg-white font-semibold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition">
           Back to Admin
         </a>
       </div>
@@ -95,7 +99,7 @@
   <main class="px-4 py-8">
     <p id="errorBox" class="hidden max-w-3xl mx-auto mb-6 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-semibold"></p>
 
-    <div id="sheet" class="intake-sheet rounded-xl p-8">
+    <div id="sheet" class="intake-sheet rounded-xl p-4 sm:p-8">
       <div class="text-center">
         <p class="text-sm">Republic of the Philippines</p>
         <p class="text-sm">Department of Education</p>

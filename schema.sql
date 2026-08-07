@@ -25,6 +25,20 @@ CREATE TABLE IF NOT EXISTS admin_users (
   username TEXT NOT NULL UNIQUE,
   password_salt TEXT NOT NULL,
   password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'admin',
+  role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'superadmin')),
+  recovery_question TEXT,
+  recovery_answer_salt TEXT,
+  recovery_answer_hash TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS activity_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  action TEXT NOT NULL,
+  detail TEXT,
+  ip TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_created_at ON activity_log (created_at);

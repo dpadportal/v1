@@ -55,6 +55,9 @@
       color: #1d4518;
       transition: background 0.15s, color 0.15s;
     }
+    @media (max-width: 480px) {
+      .lang-toggle span { padding: 5px 11px; font-size: 0.8rem; }
+    }
     .lang-toggle span.active {
       background: #2e6b27;
       color: #ffffff;
@@ -85,20 +88,20 @@
 
   <!-- ============ HEADER ============ -->
   <header class="fixed top-0 inset-x-0 z-40 glass border-b border-white/10">
-    <div class="max-w-6xl mx-auto px-4 py-6 flex items-center justify-between">
-      <div class="flex items-center gap-6">
-        <img src="/sdo.png" alt="Logo" class="h-20 w-20 rounded-lg shadow" />
-        <div>
-          <p class="font-bold text-[31px] text-brand-dark leading-tight" data-i18n="org.title">SDO Nueva Ecija</p>
-          <p class="text-xl text-brand-dark leading-tight" data-i18n="org.sub">DPAC Portal</p>
+    <div class="max-w-6xl mx-auto px-4 py-3 md:py-6 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 md:gap-6 min-w-0">
+        <img src="/sdo.png" alt="Logo" class="h-14 w-14 md:h-20 md:w-20 rounded-lg shadow shrink-0" />
+        <div class="min-w-0">
+          <p class="font-bold text-lg md:text-[31px] text-brand-dark leading-tight truncate" data-i18n="org.title">SDO Nueva Ecija</p>
+          <p class="text-base md:text-xl text-brand-dark leading-tight" data-i18n="org.sub">DPAC Portal</p>
         </div>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 md:gap-4 shrink-0">
         <div id="langToggle" class="lang-toggle cursor-pointer select-none" role="button" aria-label="Language">
           <span data-lang="en">EN</span><span data-lang="tl">PH</span>
         </div>
         <a href="/admin" title="Admin" class="block transition hover:opacity-80 hover:scale-105 active:scale-95">
-          <img src="/admin.png" alt="Admin" class="h-11 w-11 rounded-full shadow" />
+          <img src="/admin.png" alt="Admin" class="h-9 w-9 md:h-11 md:w-11 rounded-full shadow" />
         </a>
       </div>
     </div>
@@ -109,7 +112,7 @@
     <video class="hero-video" src="/background.mp4" autoplay muted loop playsinline preload="auto"></video>
 
     <div class="relative z-10 max-w-3xl flex flex-col items-center">
-      <h1 class="font-script italic whitespace-nowrap text-4xl md:text-6xl hero-glow leading-tight" data-i18n="hero.heading">
+      <h1 class="font-script italic text-3xl sm:text-4xl md:text-6xl hero-glow leading-tight" data-i18n="hero.heading">
         Tell us and we will act on it
       </h1>
       <p class="mt-5 text-base md:text-lg hero-glow-white max-w-2xl leading-relaxed" data-i18n="hero.sub">

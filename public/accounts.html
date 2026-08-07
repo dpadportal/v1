@@ -26,20 +26,20 @@
 </head>
 <body class="bg-gray-100 text-gray-900 antialiased">
   <header class="bg-white/85 backdrop-blur border-b border-gray-200 sticky top-0 z-40">
-    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <img src="/sdo.png" alt="Logo" class="h-12 w-12 rounded-lg shadow" />
-        <div>
-          <p class="font-bold text-xl text-brand-dark leading-tight">Account Management</p>
-          <p class="text-sm text-gray-500 leading-tight" id="loginUser"></p>
+    <div class="max-w-5xl mx-auto px-4 py-3 md:py-4 flex items-center justify-between gap-2 flex-wrap">
+      <div class="flex items-center gap-2 md:gap-3 min-w-0">
+        <img src="/sdo.png" alt="Logo" class="h-9 w-9 md:h-12 md:w-12 rounded-lg shadow shrink-0" />
+        <div class="min-w-0">
+          <p class="font-bold text-base md:text-xl text-brand-dark leading-tight truncate">Account Management</p>
+          <p class="text-xs md:text-sm text-gray-500 leading-tight truncate" id="loginUser"></p>
         </div>
       </div>
-      <div class="flex items-center gap-2">
-        <a href="/admin" class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition">
+      <div class="flex items-center gap-2 flex-wrap">
+        <a href="/admin" class="rounded-lg bg-white border border-gray-300 font-semibold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition">
           Back to Admin
         </a>
         <button id="logoutBtn" type="button"
-          class="rounded-lg bg-gray-200 font-semibold px-4 py-2 text-sm hover:bg-gray-300 transition">
+          class="rounded-lg bg-gray-200 font-semibold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-300 transition">
           Log out
         </button>
       </div>
