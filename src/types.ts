@@ -5,6 +5,8 @@ export interface Env {
   EMAIL_FROM: string;
   SMTP_USER?: string;
   SMTP_PASSWORD?: string;
+  ADMIN_USER?: string;
+  ADMIN_PASSWORD?: string;
 }
 
 export const NATURE_VALUES = ["complaint", "suggestions", "praise"] as const;

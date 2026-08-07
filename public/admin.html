@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin | DPAC Portal</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: "#2e6b27", "brand-dark": "#1d4518", "brand-light": "#4c9a42" },
+          fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"] },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
+    .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 50; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased">
+  <header class="glass border-b border-gray-200 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="/sdo.png" alt="Logo" class="h-14 w-14 rounded-lg shadow" />
+        <div>
+          <p class="font-bold text-2xl text-brand-dark leading-tight">SDO Nueva Ecija</p>
+          <p class="text-lg text-brand-dark leading-tight">DPAC Portal — Admin</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="loginUser" class="text-sm font-semibold text-gray-600 hidden"></span>
+        <button id="logoutBtn" type="button" class="hidden px-4 py-2 rounded-lg bg-gray-200 font-semibold text-sm hover:bg-gray-300 transition">
+          Log out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <section id="loginSection" class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-lg p-8">
+      <h1 class="text-2xl font-bold text-brand-dark mb-1">Admin sign in</h1>
+      <p class="text-sm text-gray-500 mb-6">Sign in to manage submitted tickets.</p>
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label for="adminUser" class="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+          <input id="adminUser" type="text" autocomplete="username" required
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand" />
+        </div>
+        <div>
+          <label for="adminPass" class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+          <input id="adminPass" type="password" autocomplete="current-password" required
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand" />
+        </div>
+        <p id="loginError" class="hidden text-sm font-semibold text-red-600"></p>
+        <button type="submit"
+          class="w-full rounded-lg bg-brand text-white font-bold py-2.5 hover:bg-brand-dark transition">
+          Sign in
+        </button>
+      </form>
+    </section>
+
+    <section id="dashboardSection" class="hidden space-y-6">
+      <div id="statsRow" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+
+      <div class="bg-white rounded-2xl shadow p-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+        <select id="statusFilter" class="rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm font-medium">
+          <option value="">All statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Under Review">Under Review</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+        <input id="searchInput" type="search" placeholder="Search reference, name, email, school, description..."
+          class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+        <button id="searchBtn" type="button"
+          class="rounded-lg bg-brand text-white font-semibold px-5 py-2 text-sm hover:bg-brand-dark transition">
+          Search
+        </button>
+        <button id="resetBtn" type="button"
+          class="rounded-lg bg-gray-200 font-semibold px-4 py-2 text-sm hover:bg-gray-300 transition">
+          Reset
+        </button>
+      </div>
+
+      <p id="tableMeta" class="text-sm text-gray-600 font-medium"></p>
+
+      <div class="bg-white rounded-2xl shadow overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 text-left text-gray-600 uppercase text-xs tracking-wide">
+              <th class="px-4 py-3">Reference</th>
+              <th class="px-4 py-3">Received</th>
+              <th class="px-4 py-3">Name</th>
+              <th class="px-4 py-3">Email</th>
+              <th class="px-4 py-3">School / Office</th>
+              <th class="px-4 py-3">District</th>
+              <th class="px-4 py-3">Nature</th>
+              <th class="px-4 py-3">Description</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody id="ticketsBody"></tbody>
+        </table>
+        <p id="emptyState" class="hidden text-center text-gray-500 py-10">No tickets found.</p>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <button id="prevBtn" type="button" class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition disabled:opacity-40">
+          &larr; Previous
+        </button>
+        <span id="pageInfo" class="text-sm text-gray-600 font-medium"></span>
+        <button id="nextBtn" type="button" class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition disabled:opacity-40">
+          Next &rarr;
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden px-4 py-3 rounded-xl shadow-lg text-white font-semibold text-sm"></div>
+
+  <div id="descModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-3">
+        <h3 id="descModalTitle" class="font-bold text-brand-dark text-lg">Description</h3>
+        <button id="descModalClose" type="button" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <pre id="descModalBody" class="whitespace-pre-wrap font-sans text-sm text-gray-700"></pre>
+    </div>
+  </div>
+
+  <script>
+    var AUTH_KEY = "arta-admin-auth";
+    var PAGE_SIZE = 25;
+    var auth = null;
+    var page = 0;
+    var total = 0;
+
+    var NATURE_LABELS = { complaint: "Complaint", suggestions: "Suggestions", praise: "Praise" };
+    var STATUS_COLORS = {
+      "Pending": "bg-amber-100 text-amber-800",
+      "Under Review": "bg-blue-100 text-blue-800",
+      "Resolved": "bg-green-100 text-green-800",
+    };
+
+    function esc(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function toast(msg, ok) {
+      var el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = "toast px-4 py-3 rounded-xl shadow-lg text-white font-semibold text-sm " + (ok ? "bg-brand" : "bg-red-600");
+      el.classList.remove("hidden");
+      clearTimeout(el._t);
+      el._t = setTimeout(function () { el.classList.add("hidden"); }, 4000);
+    }
+
+    function authHeaders() {
+      return { "Authorization": "Basic " + auth, "Content-Type": "application/json" };
+    }
+
+    async function api(path, method, body) {
+      var res = await fetch(path, {
+        method: method || "GET",
+        headers: authHeaders(),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (res.status === 401 || res.status === 503) throw new Error("unauthorized");
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function showDashboard() {
+      document.getElementById("loginSection").classList.add("hidden");
+      document.getElementById("dashboardSection").classList.remove("hidden");
+      document.getElementById("logoutBtn").classList.remove("hidden");
+      document.getElementById("loginUser").classList.remove("hidden");
+      document.getElementById("loginUser").textContent = "Signed in as " + atob(auth).split(":")[0];
+      loadAll();
+    }
+
+    function showLogin(msg) {
+      auth = null;
+      sessionStorage.removeItem(AUTH_KEY);
+      document.getElementById("dashboardSection").classList.add("hidden");
+      document.getElementById("logoutBtn").classList.add("hidden");
+      document.getElementById("loginUser").classList.add("hidden");
+      document.getElementById("loginSection").classList.remove("hidden");
+      if (msg) {
+        var err = document.getElementById("loginError");
+        err.textContent = msg;
+        err.classList.remove("hidden");
+      }
+    }
+
+    async function loadStats() {
+      try {
+        var data = await api("/api/admin/stats");
+        var counts = data.stats.counts;
+        var cards = [
+          ["Total", data.stats.total, "bg-white"],
+          ["Pending", counts.Pending || 0, "bg-amber-50"],
+          ["Under Review", counts["Under Review"] || 0, "bg-blue-50"],
+          ["Resolved", counts.Resolved || 0, "bg-green-50"],
+        ];
+        document.getElementById("statsRow").innerHTML = cards.map(function (c) {
+          return '<div class="rounded-2xl shadow p-5 ' + c[2] + '"><p class="text-sm font-semibold text-gray-500">' + c[0] +
+            '</p><p class="text-3xl font-extrabold text-brand-dark mt-1">' + c[1] + "</p></div>";
+        }).join("");
+      } catch (e) {
+        if (e.message === "unauthorized") showLogin("Session expired. Sign in again.");
+      }
+    }
+
+    async function loadTickets() {
+      var status = document.getElementById("statusFilter").value;
+      var q = document.getElementById("searchInput").value.trim();
+      var params = new URLSearchParams();
+      params.set("limit", String(PAGE_SIZE));
+      params.set("offset", String(page * PAGE_SIZE));
+      if (status) params.set("status", status);
+      if (q) params.set("q", q);
+
+      var data = await api("/api/admin/tickets?" + params.toString());
+      total = data.total;
+      var tbody = document.getElementById("ticketsBody");
+      var rows = data.tickets || [];
+
+      if (rows.length === 0) {
+        tbody.innerHTML = "";
+        document.getElementById("emptyState").classList.remove("hidden");
+      } else {
+        document.getElementById("emptyState").classList.add("hidden");
+        tbody.innerHTML = rows.map(function (t) {
+          return '<tr class="border-t border-gray-100 hover:bg-gray-50 align-top">' +
+            '<td class="px-4 py-3 font-mono text-xs font-semibold text-brand">' + esc(t.arta_reference_no) + "</td>" +
+            '<td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">' + esc((t.created_at || "").slice(0, 16)) + "</td>" +
+            '<td class="px-4 py-3">' + esc(t.full_name || "—") + "</td>" +
+            '<td class="px-4 py-3 text-xs">' + esc(t.email_address) + "</td>" +
+            '<td class="px-4 py-3 text-xs">' + esc(t.school_name) + "</td>" +
+            '<td class="px-4 py-3 text-xs">' + esc(t.district || "—") + "</td>" +
+            '<td class="px-4 py-3 text-xs">' + esc(NATURE_LABELS[t.nature_of_request] || t.nature_of_request) + "</td>" +
+            '<td class="px-4 py-3 text-xs max-w-[220px]">' +
+            '<button type="button" class="text-left text-gray-700 hover:text-brand underline decoration-dotted" onclick="openDesc(' + t.id + ')">' +
+            esc((t.description || "").slice(0, 90)) + (t.description && t.description.length > 90 ? "…" : "") + "</button></td>" +
+            '<td class="px-4 py-3"><select data-id="' + t.id + '" class="status-select rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold ' +
+            (STATUS_COLORS[t.status] || "") + '">' +
+            ["Pending", "Under Review", "Resolved"].map(function (s) {
+              return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + ">" + s + "</option>";
+            }).join("") +
+            "</select></td>" +
+            '<td class="px-4 py-3"><button type="button" data-id="' + t.id + '" class="save-btn hidden rounded-lg bg-brand text-white font-bold px-3 py-1 text-xs hover:bg-brand-dark transition">Save</button></td>' +
+            "</tr>";
+        }).join("");
+      }
+
+      document.getElementById("tableMeta").textContent = "Showing " +
+        (total === 0 ? 0 : page * PAGE_SIZE + 1) + "–" + Math.min((page + 1) * PAGE_SIZE, total) + " of " + total + " tickets";
+      document.getElementById("pageInfo").textContent = "Page " + (page + 1) +
+        " of " + Math.max(1, Math.ceil(total / PAGE_SIZE));
+      document.getElementById("prevBtn").disabled = page === 0;
+      document.getElementById("nextBtn").disabled = page >= Math.ceil(total / PAGE_SIZE) - 1;
+    }
+
+    function loadAll() {
+      loadStats().then(loadTickets).catch(function (e) {
+        if (e.message === "unauthorized") showLogin("Session expired. Sign in again.");
+        else toast(e.message, false);
+      });
+    }
+
+    window.openDesc = function (id) {
+      var status = document.getElementById("statusFilter").value;
+      var q = document.getElementById("searchInput").value.trim();
+      var params = new URLSearchParams();
+      if (status) params.set("status", status);
+      if (q) params.set("q", q);
+      api("/api/admin/tickets?" + params.toString() + "&limit=200&offset=0").then(function (data) {
+        var t = (data.tickets || []).find(function (x) { return x.id === id; });
+        if (!t) { toast("Ticket no longer listed.", false); return; }
+        document.getElementById("descModalTitle").textContent = t.arta_reference_no;
+        document.getElementById("descModalBody").textContent = t.description;
+        document.getElementById("descModal").classList.remove("hidden");
+      }).catch(function (e) {
+        if (e.message === "unauthorized") showLogin("Session expired. Sign in again.");
+      });
+    };
+
+    document.getElementById("loginForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var u = document.getElementById("adminUser").value.trim();
+      var p = document.getElementById("adminPass").value;
+      if (!u || !p) return;
+      auth = btoa(u + ":" + p);
+      sessionStorage.setItem(AUTH_KEY, auth);
+      document.getElementById("loginError").classList.add("hidden");
+      api("/api/admin/stats").then(function () {
+        showDashboard();
+      }).catch(function () {
+        auth = null;
+        sessionStorage.removeItem(AUTH_KEY);
+        var err = document.getElementById("loginError");
+        err.textContent = "Incorrect username or password.";
+        err.classList.remove("hidden");
+      });
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", function () { showLogin(); });
+
+    document.getElementById("statusFilter").addEventListener("change", function () {
+      page = 0;
+      loadAll();
+    });
+
+    document.getElementById("searchBtn").addEventListener("click", function () {
+      page = 0;
+      loadAll();
+    });
+
+    document.getElementById("searchInput").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        page = 0;
+        loadAll();
+      }
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", function () {
+      document.getElementById("statusFilter").value = "";
+      document.getElementById("searchInput").value = "";
+      page = 0;
+      loadAll();
+    });
+
+    document.getElementById("prevBtn").addEventListener("click", function () {
+      if (page > 0) { page--; loadTickets(); }
+    });
+
+    document.getElementById("nextBtn").addEventListener("click", function () {
+      page++;
+      loadTickets();
+    });
+
+    document.getElementById("descModalClose").addEventListener("click", function () {
+      document.getElementById("descModal").classList.add("hidden");
+    });
+    document.getElementById("descModal").addEventListener("click", function (e) {
+      if (e.target === this) this.classList.add("hidden");
+    });
+
+    document.getElementById("ticketsBody").addEventListener("change", function (e) {
+      if (e.target.classList.contains("status-select")) {
+        var btn = document.querySelector('.save-btn[data-id="' + e.target.dataset.id + '"]');
+        if (btn) btn.classList.remove("hidden");
+      }
+    });
+
+    document.getElementById("ticketsBody").addEventListener("click", function (e) {
+      if (!e.target.classList.contains("save-btn")) return;
+      var id = e.target.dataset.id;
+      var sel = document.querySelector('.status-select[data-id="' + e.target.dataset.id + '"]');
+      api("/api/admin/tickets/" + id, "PATCH", { status: sel.value }).then(function () {
+        toast("Status updated. Notification email sent to the submitter.", true);
+        e.target.classList.add("hidden");
+        loadStats();
+      }).catch(function (err) {
+        if (err.message === "unauthorized") showLogin("Session expired. Sign in again.");
+        else toast(err.message, false);
+      });
+    });
+
+    (function init() {
+      var stored = sessionStorage.getItem(AUTH_KEY);
+      if (stored) {
+        auth = stored;
+        api("/api/admin/stats").then(showDashboard).catch(function () { showLogin(); });
+      }
+    })();
+  </script>
+</body>
+</html>

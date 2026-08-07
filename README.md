@@ -27,6 +27,20 @@ SMTP_PASSWORD=your-gmail-app-password
 
 Use a [Gmail App Password](https://support.google.com/accounts/answer/185833) (requires 2-Step Verification on the account) — not your normal account password. (`EMAIL_FROM` is set as a var in `wrangler.jsonc`.)
 
+## Admin panel
+
+Visit `/admin` on the deployed site (Basic Auth, no separate page server):
+
+- **Sign in:** username/password from the `ADMIN_USER` / `ADMIN_PASSWORD` secrets
+- **Features:** stats cards (total per status), filter by status + free-text search, pagination, full ticket details, and status changes — each change emails the submitter a bilingual status update
+
+Set the secrets:
+
+```bash
+wrangler secret put ADMIN_USER
+wrangler secret put ADMIN_PASSWORD
+```
+
 ## API
 
 | Route | Method | Purpose |
@@ -35,6 +49,9 @@ Use a [Gmail App Password](https://support.google.com/accounts/answer/185833) (r
 | `/api/captcha` | POST | Generates a math problem, stores the hashed answer in KV, returns `{ sessionId, problem }` |
 | `/api/submit` | POST | Validates payload, verifies OTP + CAPTCHA, inserts ticket into D1, emails the ARTA reference |
 | `/api/track/:ref` | GET | Looks up a ticket by `ARTA-YYYY-XXXXX` and returns its status |
+| `/api/admin/tickets` | GET | Lists tickets (filter: `status`, `q`; page: `limit`, `offset`) — requires Basic Auth |
+| `/api/admin/tickets/:id` | PATCH | Updates a ticket's status and emails the submitter — requires Basic Auth |
+| `/api/admin/stats` | GET | Counts per status — requires Basic Auth |
 
 ## Deploying
 

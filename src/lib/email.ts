@@ -1,5 +1,11 @@
-import type { Env } from "../types";
+import type { Env, TicketStatus } from "../types";
 import { connect } from "cloudflare:sockets";
+
+const STATUS_LABELS: Record<TicketStatus, string> = {
+  Pending: "Pending",
+  "Under Review": "Under Review",
+  Resolved: "Resolved",
+};
 
 function escapeHtml(value: string): string {
   return value
@@ -176,5 +182,32 @@ export async function sendConfirmationEmail(
   }
 
   const result = await smtpSend(env, to, `Your ARTA reference number / Ang iyong ARTA reference number: ${referenceNo}`, html);
+  return result;
+}
+
+export async function sendStatusUpdateEmail(
+  env: Env,
+  to: string,
+  referenceNo: string,
+  status: TicketStatus
+): Promise<{ ok: boolean }> {
+  const safeReference = escapeHtml(referenceNo);
+  const label = STATUS_LABELS[status];
+  const html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+      <h2 style="margin: 0 0 12px; color: #2e6b27;">Status update / Pag-update ng katayuan</h2>
+      <p style="margin: 0 0 8px; color: #374151;">Your ticket / Ang iyong ticket: <strong>${safeReference}</strong></p>
+      <p style="margin: 0 0 4px; color: #374151;">New status / Bagong katayuan:</p>
+      <p style="font-size: 22px; font-weight: 700; margin: 0 0 16px; color: #111827;">${label}</p>
+      <p style="margin: 0; font-size: 12px; color: #6b7280;">You can track your ticket using this reference number on our website.</p>
+    </div>
+  `;
+
+  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
+    console.log(`[dev] Status update email for ${to}: ${referenceNo} -> ${label}`);
+    return { ok: true };
+  }
+
+  const result = await smtpSend(env, to, `Status update for ${safeReference}`, html);
   return result;
 }
