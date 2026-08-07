@@ -439,7 +439,7 @@
       } else {
         document.getElementById("emptyState").classList.add("hidden");
         tbody.innerHTML = rows.map(function (t) {
-          return '<tr class="border-t border-gray-100 hover:bg-gray-50 align-top">' +
+          return '<tr class="border-t border-gray-100 hover:bg-brand/5 cursor-pointer align-top" onclick="rowClick(event, ' + t.id + ')">' +
             '<td class="px-4 py-3 font-mono text-xs font-semibold text-brand">' + esc(t.arta_reference_no) + "</td>" +
             '<td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">' + esc((t.created_at || "").slice(0, 16)) + "</td>" +
             '<td class="px-4 py-3">' + esc(t.full_name || "—") + "</td>" +
@@ -447,9 +447,7 @@
             '<td class="px-4 py-3 text-xs">' + esc(t.school_name) + "</td>" +
             '<td class="px-4 py-3 text-xs">' + esc(t.district || "—") + "</td>" +
             '<td class="px-4 py-3 text-xs">' + esc(NATURE_LABELS[t.nature_of_request] || t.nature_of_request) + "</td>" +
-            '<td class="px-4 py-3 text-xs max-w-[220px]">' +
-            '<button type="button" class="text-left text-gray-700 hover:text-brand underline decoration-dotted" onclick="openTicket(' + t.id + ')">' +
-            esc((t.description || "").slice(0, 90)) + (t.description && t.description.length > 90 ? "…" : "") + "</button></td>" +
+            '<td class="px-4 py-3 text-xs max-w-[220px] truncate" title="' + esc(t.description) + '">' + esc((t.description || "").slice(0, 90)) + (t.description && t.description.length > 90 ? "…" : "") + "</td>" +
             '<td class="px-4 py-3"><select data-id="' + t.id + '" class="status-select rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold ' +
             (STATUS_COLORS[t.status] || "") + '">' +
             ["Pending", "Under Review", "Resolved"].map(function (s) {
@@ -477,6 +475,12 @@
     }
 
     var currentTicket = null;
+
+    window.rowClick = function (e, id) {
+      var t = e.target;
+      if (t.closest("select") || t.closest("button") || t.closest("a")) return;
+      openTicket(id);
+    };
 
     window.openTicket = function (id) {
       api("/api/admin/tickets/" + id).then(function (data) {
