@@ -23,7 +23,34 @@ admin.get("/stats", async (c) => {
   for (const row of rows.results) counts[String(row.status)] = Number(row.count);
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
-  return c.json({ ok: true, stats: { total, counts } });
+  const districtRows = await c.env.DB.prepare(
+    `SELECT district, COUNT(*) AS count FROM tickets GROUP BY district`
+  ).all();
+  const districtCounts: Record<string, number> = {};
+  for (const row of districtRows.results) {
+    districtCounts[String(row.district ?? "None")] = Number(row.count);
+  }
+
+  const natureRows = await c.env.DB.prepare(
+    `SELECT nature_of_request, COUNT(*) AS count FROM tickets GROUP BY nature_of_request`
+  ).all();
+  const natureCounts: Record<string, number> = {};
+  for (const row of natureRows.results) {
+    natureCounts[String(row.nature_of_request)] = Number(row.count);
+  }
+
+  const dailyRows = await c.env.DB.prepare(
+    `SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS count
+     FROM tickets
+     WHERE created_at >= datetime('now', '-13 days')
+     GROUP BY day ORDER BY day`
+  ).all();
+  const daily: Array<{ day: string; count: number }> = dailyRows.results.map((row) => ({
+    day: String(row.day),
+    count: Number(row.count),
+  }));
+
+  return c.json({ ok: true, stats: { total, counts, districtCounts, natureCounts, daily } });
 });
 
 admin.get("/tickets", async (c) => {
@@ -111,6 +138,83 @@ admin.patch("/tickets/:id", async (c) => {
   );
 
   return c.json({ ok: true, status });
+});
+
+admin.get("/tickets/export", async (c) => {
+  const denied = adminGuard(c);
+  if (denied) return denied;
+
+  const status = c.req.query("status");
+  const q = (c.req.query("q") ?? "").trim().slice(0, 100);
+
+  const where: string[] = [];
+  const params: Array<string | number> = [];
+  if (status) {
+    where.push("status = ?");
+    params.push(status);
+  }
+  if (q) {
+    const like = `%${escapeLike(q)}%`;
+    where.push(
+      "(arta_reference_no LIKE ? ESCAPE '\\' OR full_name LIKE ? ESCAPE '\\' OR email_address LIKE ? ESCAPE '\\' OR school_name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')"
+    );
+    params.push(like, like, like, like, like);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+  const rows = await c.env.DB.prepare(
+    `SELECT arta_reference_no, full_name, cellphone_number, email_address,
+            district, school_name, nature_of_request, description, status, created_at, updated_at
+     FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT 10000`
+  )
+    .bind(...params)
+    .all();
+
+  const csvEscape = (value: unknown): string => {
+    const s = String(value ?? "");
+    if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+
+  const header = [
+    "arta_reference_no",
+    "full_name",
+    "cellphone_number",
+    "email_address",
+    "district",
+    "school_name",
+    "nature_of_request",
+    "description",
+    "status",
+    "created_at",
+    "updated_at",
+  ].join(",");
+
+  const lines = rows.results.map((row) =>
+    [
+      csvEscape(row.arta_reference_no),
+      csvEscape(row.full_name),
+      csvEscape(row.cellphone_number),
+      csvEscape(row.email_address),
+      csvEscape(row.district),
+      csvEscape(row.school_name),
+      csvEscape(row.nature_of_request),
+      csvEscape(row.description),
+      csvEscape(row.status),
+      csvEscape(row.created_at),
+      csvEscape(row.updated_at),
+    ].join(",")
+  );
+
+  const csv = `\uFEFF${[header, ...lines].join("\r\n")}\r\n`;
+  const filename = `tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+
+  return new Response(csv, {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+  });
 });
 
 admin.get("/tickets/:id", async (c) => {

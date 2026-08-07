@@ -21,6 +21,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/vfs_fonts.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="/intake-pdf.js"></script>
   <style>
     body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
@@ -73,6 +74,25 @@
     <section id="dashboardSection" class="hidden space-y-6">
       <div id="statsRow" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
 
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl shadow p-4">
+          <p class="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">Tickets by Status</p>
+          <canvas id="chartStatus" height="120"></canvas>
+        </div>
+        <div class="bg-white rounded-2xl shadow p-4">
+          <p class="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">Tickets by District</p>
+          <canvas id="chartDistrict" height="120"></canvas>
+        </div>
+        <div class="bg-white rounded-2xl shadow p-4">
+          <p class="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">Tickets by Nature</p>
+          <canvas id="chartNature" height="120"></canvas>
+        </div>
+        <div class="bg-white rounded-2xl shadow p-4">
+          <p class="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">Tickets per Day (last 14 days)</p>
+          <canvas id="chartDaily" height="120"></canvas>
+        </div>
+      </div>
+
       <div class="bg-white rounded-2xl shadow p-4 flex flex-col sm:flex-row gap-3 sm:items-center">
         <select id="statusFilter" class="rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm font-medium">
           <option value="">All statuses</option>
@@ -89,6 +109,10 @@
         <button id="resetBtn" type="button"
           class="rounded-lg bg-gray-200 font-semibold px-4 py-2 text-sm hover:bg-gray-300 transition">
           Reset
+        </button>
+        <button id="exportBtn" type="button"
+          class="rounded-lg bg-white border-2 border-brand text-brand-dark font-bold px-5 py-2 text-sm hover:bg-brand hover:text-white transition">
+          Export CSV
         </button>
       </div>
 
@@ -241,6 +265,104 @@
       }
     }
 
+    var chartInstances = {};
+
+    function renderChart(id, config) {
+      if (chartInstances[id]) chartInstances[id].destroy();
+      chartInstances[id] = new Chart(document.getElementById(id), config);
+    }
+
+    function renderCharts(stats) {
+      var brand = "#2e6b27";
+      var palette = ["#2e6b27", "#4c9a42", "#f59e0b", "#3b82f6", "#ef4444", "#8b5cf6", "#14b8a6"];
+
+      renderChart("chartStatus", {
+        type: "bar",
+        data: {
+          labels: ["Pending", "Under Review", "Resolved"],
+          datasets: [{
+            label: "Tickets",
+            data: [
+              stats.counts.Pending || 0,
+              stats.counts["Under Review"] || 0,
+              stats.counts.Resolved || 0,
+            ],
+            backgroundColor: ["#f59e0b", "#3b82f6", "#22c55e"],
+            borderRadius: 6,
+          }],
+        },
+        options: chartBaseOptions(),
+      });
+
+      var districtLabels = Object.keys(stats.districtCounts || {});
+      renderChart("chartDistrict", {
+        type: "bar",
+        data: {
+          labels: districtLabels,
+          datasets: [{
+            label: "Tickets",
+            data: districtLabels.map(function (d) { return stats.districtCounts[d]; }),
+            backgroundColor: districtLabels.map(function (_, i) { return palette[i % palette.length]; }),
+            borderRadius: 6,
+          }],
+        },
+        options: chartBaseOptions(),
+      });
+
+      var natureLabels = Object.keys(stats.natureCounts || {});
+      renderChart("chartNature", {
+        type: "doughnut",
+        data: {
+          labels: natureLabels.map(function (n) { return NATURE_LABELS[n] || n; }),
+          datasets: [{
+            data: natureLabels.map(function (n) { return stats.natureCounts[n]; }),
+            backgroundColor: ["#ef4444", "#3b82f6", "#22c55e"].concat(palette),
+            borderWidth: 2,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom" } },
+        },
+      });
+
+      var days = [];
+      var dayCounts = {};
+      (stats.daily || []).forEach(function (d) {
+        dayCounts[d.day] = d.count;
+        days.push(d.day);
+      });
+      renderChart("chartDaily", {
+        type: "line",
+        data: {
+          labels: days,
+          datasets: [{
+            label: "Tickets",
+            data: days.map(function (d) { return dayCounts[d] || 0; }),
+            borderColor: brand,
+            backgroundColor: "rgba(46, 107, 39, 0.12)",
+            fill: true,
+            tension: 0.3,
+            pointRadius: 4,
+          }],
+        },
+        options: chartBaseOptions(),
+      });
+    }
+
+    function chartBaseOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+          x: { ticks: { maxRotation: 45, autoSkip: true } },
+        },
+      };
+    }
+
     async function loadStats() {
       try {
         var data = await api("/api/admin/stats");
@@ -255,6 +377,7 @@
           return '<div class="rounded-2xl shadow p-5 ' + c[2] + '"><p class="text-sm font-semibold text-gray-500">' + c[0] +
             '</p><p class="text-3xl font-extrabold text-brand-dark mt-1">' + c[1] + "</p></div>";
         }).join("");
+        renderCharts(data.stats);
       } catch (e) {
         if (e.message === "unauthorized") showLogin("Session expired. Sign in again.");
       }
@@ -386,6 +509,33 @@
       document.getElementById("searchInput").value = "";
       page = 0;
       loadAll();
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", function () {
+      var status = document.getElementById("statusFilter").value;
+      var q = document.getElementById("searchInput").value.trim();
+      var params = new URLSearchParams();
+      if (status) params.set("status", status);
+      if (q) params.set("q", q);
+      var url = "/api/admin/tickets/export" + (params.toString() ? "?" + params.toString() : "");
+
+      fetch(url, { headers: authHeaders() }).then(function (res) {
+        if (res.status === 401 || res.status === 503) throw new Error("unauthorized");
+        if (!res.ok) throw new Error("Export failed");
+        return res.blob();
+      }).then(function (blob) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "tickets-" + new Date().toISOString().slice(0, 10) + ".csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+        toast("CSV exported.", true);
+      }).catch(function (e) {
+        if (e.message === "unauthorized") showLogin("Session expired. Sign in again.");
+        else toast(e.message, false);
+      });
     });
 
     document.getElementById("prevBtn").addEventListener("click", function () {
