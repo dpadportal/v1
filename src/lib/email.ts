@@ -1,4 +1,5 @@
 import type { Env } from "../types";
+import { connect } from "cloudflare:sockets";
 
 function escapeHtml(value: string): string {
   return value
@@ -9,12 +10,127 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function base64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+interface SmtpReply {
+  code: number;
+  message: string;
+}
+
+async function smtpSend(
+  env: Env,
+  to: string,
+  subject: string,
+  html: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { SMTP_USER, SMTP_PASSWORD } = env;
+  if (!SMTP_USER || !SMTP_PASSWORD) {
+    return { ok: false, error: "SMTP is not configured." };
+  }
+
+  const socket = connect(
+    { hostname: "smtp.gmail.com", port: 465 },
+    { secureTransport: "on", allowHalfOpen: true }
+  );
+
+  const writer = socket.writable.getWriter();
+  const reader = socket.readable.getReader();
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  let buffer = "";
+
+  async function readLine(): Promise<string> {
+    while (true) {
+      const idx = buffer.indexOf("\r\n");
+      if (idx !== -1) {
+        const line = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        return line;
+      }
+      const { value, done } = await reader.read();
+      if (done) throw new Error("SMTP connection closed by server.");
+      buffer += decoder.decode(value, { stream: true });
+    }
+  }
+
+  async function readReply(): Promise<SmtpReply> {
+    let code = 0;
+    const lines: string[] = [];
+    while (true) {
+      const line = await readLine();
+      code = Number(line.slice(0, 3));
+      const sep = line[3];
+      lines.push(line.slice(4));
+      if (sep === " ") break;
+    }
+    return { code, message: lines.join(" ") };
+  }
+
+  async function writeLine(text: string): Promise<void> {
+    await writer.write(encoder.encode(text + "\r\n"));
+  }
+
+  async function expect(code: number, what: string): Promise<void> {
+    const reply = await readReply();
+    if (reply.code !== code) {
+      throw new Error(`${what}: SMTP responded ${reply.code} ${reply.message}`);
+    }
+  }
+
+  try {
+    await expect(220, "greeting");
+    await writeLine("EHLO dpacportal.gmail.com");
+    await expect(250, "EHLO");
+    await writeLine(`AUTH PLAIN ${base64(`\0${SMTP_USER}\0${SMTP_PASSWORD}`)}`);
+    await expect(235, "authentication");
+    await writeLine(`MAIL FROM:<${SMTP_USER}>`);
+    await expect(250, "MAIL FROM");
+    await writeLine(`RCPT TO:<${to}>`);
+    await expect(250, "RCPT TO");
+    await writeLine("DATA");
+    await expect(354, "DATA");
+
+    const body = html.replace(/\r?\n/g, "\r\n").replace(/^\./gm, "..");
+    await writeLine(`From: ${env.EMAIL_FROM}`);
+    await writeLine(`To: ${to}`);
+    await writeLine(`Subject: ${subject}`);
+    await writeLine("MIME-Version: 1.0");
+    await writeLine("Content-Type: text/html; charset=UTF-8");
+    await writeLine("Content-Transfer-Encoding: 8bit");
+    await writeLine("");
+    await writeLine(body);
+    await writeLine(".");
+    await expect(250, "message accepted");
+
+    await writeLine("QUIT");
+    await reader.read().catch(() => undefined);
+
+    return { ok: true };
+  } catch (err) {
+    console.error("SMTP send failed:", err);
+    return { ok: false, error: "Could not send the email. Please try again." };
+  } finally {
+    try {
+      await writer.close();
+    } catch {
+      /* already closed */
+    }
+    socket.close();
+  }
+}
+
 export async function sendOtpEmail(
   env: Env,
   to: string,
   code: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!env.RESEND_API_KEY) {
+  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
     console.log(`[dev] OTP for ${to}: ${code}`);
     return { ok: true };
   }
@@ -28,26 +144,7 @@ export async function sendOtpEmail(
     </div>
   `;
 
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: env.EMAIL_FROM,
-        to: [to],
-        subject: "Your verification code / Ang iyong verification code",
-        html,
-      }),
-    });
-    if (!res.ok) throw new Error(`Resend returned ${res.status}`);
-    return { ok: true };
-  } catch (err) {
-    console.error("Email send failed:", err);
-    return { ok: false, error: "Could not send the code. Please try again." };
-  }
+  return smtpSend(env, to, "Your verification code / Ang iyong verification code", html);
 }
 
 export async function sendConfirmationEmail(
@@ -73,28 +170,11 @@ export async function sendConfirmationEmail(
     </div>
   `;
 
-  if (!env.RESEND_API_KEY) {
+  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
     console.log(`[dev] Confirmation email for ${to}: reference ${referenceNo}`);
     return { ok: true };
   }
 
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: env.EMAIL_FROM,
-        to: [to],
-        subject: `Your ARTA reference number / Ang iyong ARTA reference number: ${referenceNo}`,
-        html,
-      }),
-    });
-    return { ok: res.ok };
-  } catch (err) {
-    console.error("Confirmation email send failed:", err);
-    return { ok: false };
-  }
+  const result = await smtpSend(env, to, `Your ARTA reference number / Ang iyong ARTA reference number: ${referenceNo}`, html);
+  return result;
 }

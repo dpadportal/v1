@@ -3,7 +3,8 @@ export interface Env {
   KV: KVNamespace;
   ASSETS: Fetcher;
   EMAIL_FROM: string;
-  RESEND_API_KEY?: string;
+  SMTP_USER?: string;
+  SMTP_PASSWORD?: string;
 }
 
 export const NATURE_VALUES = ["complaint", "suggestions", "praise"] as const;

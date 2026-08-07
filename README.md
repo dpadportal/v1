@@ -8,7 +8,7 @@ A bilingual (English/Tagalog) submission and tracking platform deployed on Cloud
 - **Backend:** Cloudflare Worker (Hono, TypeScript)
 - **Database:** Cloudflare D1 (SQLite)
 - **KV:** OTP codes and CAPTCHA sessions (5-minute TTL)
-- **Email:** Resend REST API (falls back to console logging in dev)
+- **Email:** Gmail SMTP (falls back to console logging in dev)
 
 ## Getting started
 
@@ -21,10 +21,11 @@ npm run dev            # wrangler dev at http://localhost:8787
 The OTP code is logged to the terminal (no email needed while developing). To enable real email, create a `.dev.vars` file:
 
 ```
-RESEND_API_KEY=re_xxxx
+SMTP_USER=dpacportal@gmail.com
+SMTP_PASSWORD=your-gmail-app-password
 ```
 
-(`EMAIL_FROM` is set as a var in `wrangler.jsonc`.)
+Use a [Gmail App Password](https://support.google.com/accounts/answer/185833) (requires 2-Step Verification on the account) — not your normal account password. (`EMAIL_FROM` is set as a var in `wrangler.jsonc`.)
 
 ## API
 
@@ -45,11 +46,12 @@ wrangler kv namespace create kv   # copy the returned id
 ```
 
 2. Paste both IDs into `wrangler.jsonc` (the `REPLACE_WITH_*` placeholders).
-3. Apply the schema remotely and set the secret:
+3. Apply the schema remotely and set the secrets:
 
 ```bash
 npm run db:init:remote
-wrangler secret put RESEND_API_KEY
+wrangler secret put SMTP_USER
+wrangler secret put SMTP_PASSWORD
 ```
 
 > The schema (`schema.sql`) is **destructive** (`DROP TABLE IF EXISTS tickets`).

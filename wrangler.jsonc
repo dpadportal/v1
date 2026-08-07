@@ -11,16 +11,16 @@
     {
       "binding": "DB",
       "database_name": "arta-db",
-      "database_id": "048727ae-ed62-4234-b7c9-18da11a4ae3a"
+      "database_id": "8dc992be-05bc-462e-8a4c-0b555374269f"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "984e6eb1031b450ca39b271da4026dbb"
+      "id": "f34a5c6722254b9c93db3e4584daa3d4"
     }
   ],
   "vars": {
-    "EMAIL_FROM": "ARTA Desk <no-reply@example.com>"
+    "EMAIL_FROM": "DPAC Portal <dpacportal@gmail.com>"
   }
 }
