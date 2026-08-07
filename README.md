@@ -74,7 +74,7 @@ The workflow runs `npm ci`, `npm run typecheck`, and `wrangler deploy`. It does
 
 ## Data model (`tickets`)
 
-`arta_reference_no` (unique, `ARTA-2026-00001`), `full_name` (optional), `cellphone_number` (optional), `email_address`, `district` (optional), `school_name`, `nature_of_request` (`concern-complaint` / `request` / `inquiry`), `description`, `privacy_consent`, `status` (`Pending` / `Under Review` / `Resolved`), `created_at`, `updated_at`.
+`arta_reference_no` (unique, `ARTA-2026-00001`), `full_name` (optional), `cellphone_number` (optional), `email_address`, `district` (optional), `school_name`, `nature_of_request` (`complaint` / `suggestions` / `praise`), `description`, `privacy_consent`, `status` (`Pending` / `Under Review` / `Resolved`), `created_at`, `updated_at`.
 
 Status starts as `Pending`; update it in D1 to reflect progress:
 

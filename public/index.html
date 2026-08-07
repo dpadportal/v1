@@ -24,45 +24,90 @@
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
-    .hero-bg {
-      background-image: url("/hero-bg.svg");
-      background-size: cover;
-      background-position: center;
-      background-attachment: fixed;
+    .hero-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -1;
     }
     .glass { background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
     .modal-open { overflow: hidden; }
     .error-text { color: #dc2626; font-size: 0.8rem; margin-top: 0.25rem; }
+    .btn-stroke {
+      -webkit-text-stroke: 1px rgba(50, 55, 50, 0.85);
+      -webkit-text-fill-color: #ffffff;
+      paint-order: stroke fill;
+      text-shadow: 0 1px 3px rgba(30, 35, 30, 0.6);
+    }
+    .lang-toggle {
+      display: inline-flex;
+      border: 2px solid #1d4518;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    .lang-toggle span {
+      padding: 6px 18px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: #1d4518;
+      transition: background 0.15s, color 0.15s;
+    }
+    .lang-toggle span.active {
+      background: #2e6b27;
+      color: #ffffff;
+    }
+    .hero-glow {
+      color: #062e16;
+      -webkit-text-stroke: 1px rgba(255, 255, 255, 0.95);
+      -webkit-text-fill-color: #062e16;
+      paint-order: stroke fill;
+      text-shadow:
+        0 0 6px rgba(255, 255, 255, 0.95),
+        0 0 16px rgba(255, 255, 255, 0.85),
+        0 0 32px rgba(255, 255, 255, 0.65);
+    }
+    .hero-glow-white {
+      color: #ffffff;
+      -webkit-text-stroke: 1px rgba(255, 255, 255, 0.45);
+      -webkit-text-fill-color: #ffffff;
+      paint-order: stroke fill;
+      text-shadow:
+        0 0 6px rgba(20, 83, 45, 0.95),
+        0 0 16px rgba(20, 83, 45, 0.85),
+        0 0 32px rgba(20, 83, 45, 0.65);
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased">
 
   <!-- ============ HEADER ============ -->
   <header class="fixed top-0 inset-x-0 z-40 glass border-b border-white/10">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <img src="/logo.svg" alt="Logo" class="h-10 w-10 rounded-lg shadow" />
+    <div class="max-w-6xl mx-auto px-4 py-6 flex items-center justify-between">
+      <div class="flex items-center gap-6">
+        <img src="/sdo.png" alt="Logo" class="h-20 w-20 rounded-lg shadow" />
         <div>
-          <p class="font-bold text-white leading-tight" data-i18n="org.title">Schools Division Office</p>
-          <p class="text-xs text-white/70 leading-tight" data-i18n="org.sub">ARTA Complaints Desk</p>
+          <p class="font-bold text-[31px] text-brand-dark leading-tight" data-i18n="org.title">SDO Nueva Ecija</p>
+          <p class="text-xl text-brand-dark leading-tight" data-i18n="org.sub">DPAC Portal</p>
         </div>
       </div>
-      <button id="langToggle" type="button"
-        class="px-3 py-1.5 rounded-full text-sm font-semibold text-white border border-white/30 hover:bg-white/10 transition">
-        <span data-i18n="lang.en">English</span> / <span data-i18n="lang.tl">Tagalog</span>
-      </button>
+      <div id="langToggle" class="lang-toggle cursor-pointer select-none" role="button" aria-label="Language">
+        <span data-lang="en">EN</span><span data-lang="tl">PH</span>
+      </div>
     </div>
   </header>
 
   <!-- ============ HERO / LANDING ============ -->
-  <main class="hero-bg relative min-h-screen flex flex-col items-center justify-center text-center px-4">
-    <div class="absolute inset-0 bg-gradient-to-b from-black/60 via-black/45 to-black/70 pointer-events-none"></div>
+  <main class="hero-bg relative min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden">
+    <video class="hero-video" src="/background.mp4" autoplay muted loop playsinline preload="auto"></video>
 
     <div class="relative z-10 max-w-3xl flex flex-col items-center">
-      <h1 class="font-script italic whitespace-nowrap text-4xl md:text-6xl text-white leading-tight drop-shadow-lg" data-i18n="hero.heading">
+      <h1 class="font-script italic whitespace-nowrap text-4xl md:text-6xl hero-glow leading-tight" data-i18n="hero.heading">
         Tell us and we will act on it
       </h1>
-      <p class="mt-5 text-base md:text-lg text-white/85 max-w-2xl leading-relaxed" data-i18n="hero.sub">
+      <p class="mt-5 text-base md:text-lg hero-glow-white max-w-2xl leading-relaxed" data-i18n="hero.sub">
         Dahil gusto ka naming mapakinggan.
       </p>
 
@@ -72,12 +117,12 @@
           <span data-i18n="hero.file">File a Feedback</span>
         </button>
         <button id="openTrackBtn" type="button"
-          class="glass px-8 py-4 rounded-xl text-white font-bold text-lg border border-white/40 hover:bg-white/20 hover:scale-[1.02] active:scale-[0.99] transition">
+          class="px-8 py-4 rounded-xl bg-white/40 backdrop-blur-sm font-bold text-lg border-2 border-brand-dark hover:bg-white/60 hover:scale-[1.02] active:scale-[0.99] transition btn-stroke">
           <span data-i18n="hero.track">Track a Ticket</span>
         </button>
       </div>
 
-      <p class="mt-8 text-xs text-white/60" data-i18n="hero.note">Complies with RA 11032 (Ease of Doing Business) and ARTA standards</p>
+      <p class="mt-8 text-xs hero-glow" data-i18n="hero.note">Complies with RA 11032 (Ease of Doing Business) and ARTA standards</p>
     </div>
   </main>
 
@@ -100,6 +145,7 @@
             <div>
               <label for="full_name" class="block text-sm font-semibold text-gray-700" data-i18n="form.fullName">Full Name (optional)</label>
               <input id="full_name" name="full_name" type="text" maxlength="100" autocomplete="name"
+                placeholder="Juan Dela Cruz"
                 class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
             </div>
             <div>
@@ -114,6 +160,7 @@
             <label for="email_address" class="block text-sm font-semibold text-gray-700" data-i18n="form.email">Email Address *</label>
             <div class="mt-1 flex gap-2">
               <input id="email_address" name="email_address" type="email" required autocomplete="email"
+                placeholder="juandelacruz@gmail.com"
                 class="flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
               <button id="sendOtpBtn" type="button" disabled
                 class="px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-brand-dark transition whitespace-nowrap">
@@ -132,38 +179,39 @@
 
           <div class="grid md:grid-cols-2 gap-4">
             <div>
-              <label for="district" class="block text-sm font-semibold text-gray-700" data-i18n="form.district">District (optional)</label>
+              <label for="district" class="block text-sm font-semibold text-gray-700" data-i18n="form.district">District / Division (optional)</label>
               <select id="district" name="district" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-white focus:ring-2 focus:ring-brand focus:border-brand outline-none">
-                <option value="" data-i18n="form.selectDistrict">Select district</option>
-                <option value="District I">District I</option>
-                <option value="District II">District II</option>
-                <option value="District III">District III</option>
-                <option value="District IV">District IV</option>
-                <option value="District V">District V</option>
-                <option value="District VI">District VI</option>
-                <option value="Other" data-i18n="form.other">Other</option>
+                <option value="" data-i18n="form.selectDistrict">Select district / division</option>
+                <option value="CD I">CD I</option>
+                <option value="CD II">CD II</option>
+                <option value="CD III">CD III</option>
+                <option value="CD IV">CD IV</option>
+                <option value="CID">CID</option>
+                <option value="SGOD">SGOD</option>
               </select>
             </div>
             <div>
-              <label for="school_name" class="block text-sm font-semibold text-gray-700" data-i18n="form.school">School / Office *</label>
+              <label for="school_name" class="block text-sm font-semibold text-gray-700" data-i18n="form.school">School / Office (where the concern is intended for) *</label>
               <input id="school_name" name="school_name" type="text" required maxlength="200"
+                placeholder="e.g. Nueva Ecija High School"
                 class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
             </div>
           </div>
 
           <div>
-            <label for="nature_of_request" class="block text-sm font-semibold text-gray-700" data-i18n="form.nature">Nature of Request *</label>
+            <label for="nature_of_request" class="block text-sm font-semibold text-gray-700" data-i18n="form.nature">Nature of Concern *</label>
             <select id="nature_of_request" name="nature_of_request" required class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-white focus:ring-2 focus:ring-brand focus:border-brand outline-none">
               <option value="" data-i18n="form.selectNature">Select one</option>
-              <option value="concern-complaint" data-i18n="form.natureComplaint">Concern/Complaint (Reklamo)</option>
-              <option value="request" data-i18n="form.natureRequest">Request (Kahilingan)</option>
-              <option value="inquiry" data-i18n="form.natureInquiry">Inquiry (Pagtatanong)</option>
+              <option value="complaint" data-i18n="form.natureComplaint">Complaint</option>
+              <option value="suggestions" data-i18n="form.natureSuggestion">Suggestions</option>
+              <option value="praise" data-i18n="form.naturePraise">Praise</option>
             </select>
           </div>
 
           <div>
             <label for="description" class="block text-sm font-semibold text-gray-700" data-i18n="form.description">Description *</label>
             <textarea id="description" name="description" required rows="5" maxlength="4000"
+              placeholder="Describe your concern, complaint, or request here..."
               class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 resize-y focus:ring-2 focus:ring-brand focus:border-brand outline-none"></textarea>
             <p class="text-right text-xs text-gray-400"><span id="descCount">0</span>/4000</p>
           </div>
@@ -270,8 +318,8 @@
 
       var I18N = {
         en: {
-          "org.title": "Schools Division Office",
-          "org.sub": "ARTA Complaints Desk",
+          "org.title": "SDO Nueva Ecija",
+          "org.sub": "DPAC Portal",
           "lang.en": "English", "lang.tl": "Tagalog",
           "hero.heading": "Tell us and we will act on it",
           "hero.sub": "Dahil gusto ka naming mapakinggan.",
@@ -285,15 +333,15 @@
           "form.email": "Email Address *",
           "form.sendCode": "Send Code",
           "form.otp": "Verification Code (6 digits)",
-          "form.district": "District (optional)",
-          "form.selectDistrict": "Select district",
+          "form.district": "District / Division (optional)",
+          "form.selectDistrict": "Select district / division",
           "form.other": "Other",
-          "form.school": "School / Office *",
-          "form.nature": "Nature of Request *",
+          "form.school": "School / Office (where the concern is intended for) *",
+          "form.nature": "Nature of Concern *",
           "form.selectNature": "Select one",
-          "form.natureComplaint": "Concern/Complaint",
-          "form.natureRequest": "Request",
-          "form.natureInquiry": "Inquiry",
+          "form.natureComplaint": "Complaint",
+          "form.natureSuggestion": "Suggestions",
+          "form.naturePraise": "Praise",
           "form.description": "Description *",
           "form.captcha": "Human verification",
           "form.refresh": "New question",
@@ -321,8 +369,8 @@
           "err.generic": "Something went wrong. Please try again."
         },
         tl: {
-          "org.title": "Tanggapan ng Sangay ng mga Paaralan",
-          "org.sub": "ARTA Complaints Desk",
+          "org.title": "SDO Nueva Ecija",
+          "org.sub": "DPAC Portal",
           "lang.en": "English", "lang.tl": "Tagalog",
           "hero.heading": "Tell us and we will act on it",
           "hero.sub": "Dahil gusto ka naming mapakinggan.",
@@ -336,15 +384,15 @@
           "form.email": "Email Address *",
           "form.sendCode": "Ipadala ang Code",
           "form.otp": "Verification Code (6 digit)",
-          "form.district": "Distrito (opsyonal)",
-          "form.selectDistrict": "Pumili ng distrito",
+          "form.district": "Distrito / Dibisyon (opsyonal)",
+          "form.selectDistrict": "Pumili ng distrito / dibisyon",
           "form.other": "Iba pa",
-          "form.school": "Paaralan / Opisina *",
-          "form.nature": "Uri ng Kahilingan *",
+          "form.school": "Paaralan / Opisina (kung saan nakalaan ang isyu) *",
+          "form.nature": "Uri ng Isyu *",
           "form.selectNature": "Pumili ng isa",
-          "form.natureComplaint": "Reklamo / Komento",
-          "form.natureRequest": "Kahilingan",
-          "form.natureInquiry": "Pagtatanong",
+          "form.natureComplaint": "Reklamo (Complaint)",
+          "form.natureSuggestion": "Mungkahi (Suggestions)",
+          "form.naturePraise": "Papuri (Praise)",
           "form.description": "Paglalarawan *",
           "form.captcha": "Pagpapatunay ng tao",
           "form.refresh": "Bagong tanong",
@@ -383,10 +431,25 @@
       }
 
       // ---------- Language toggle ----------
-      document.getElementById("langToggle").addEventListener("click", function () {
-        lang = lang === "en" ? "tl" : "en";
+      var langToggle = document.getElementById("langToggle");
+
+      function updateLangToggle() {
+        langToggle.querySelectorAll("[data-lang]").forEach(function (el) {
+          el.classList.toggle("active", el.getAttribute("data-lang") === lang);
+        });
+      }
+
+      langToggle.addEventListener("click", function (e) {
+        var seg = e.target.closest("[data-lang]");
+        if (!seg) return;
+        var next = seg.getAttribute("data-lang");
+        if (next === lang) return;
+        lang = next;
         applyI18n();
+        updateLangToggle();
       });
+
+      updateLangToggle();
 
       // ---------- Modal helpers ----------
       var openModals = [];
@@ -646,9 +709,9 @@
 
           var ticket = data.ticket;
           var NATURE_KEYS = {
-            "concern-complaint": "form.natureComplaint",
-            "request": "form.natureRequest",
-            "inquiry": "form.natureInquiry"
+            "complaint": "form.natureComplaint",
+            "suggestions": "form.natureSuggestion",
+            "praise": "form.naturePraise"
           };
           document.getElementById("trackRefOut").textContent = ticket.arta_reference_no;
           document.getElementById("trackNature").textContent = t(NATURE_KEYS[ticket.nature_of_request] || ticket.nature_of_request);

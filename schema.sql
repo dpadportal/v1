@@ -8,7 +8,7 @@ CREATE TABLE tickets (
   email_address TEXT NOT NULL,
   district TEXT,
   school_name TEXT NOT NULL,
-  nature_of_request TEXT NOT NULL CHECK (nature_of_request IN ('concern-complaint', 'request', 'inquiry')),
+  nature_of_request TEXT NOT NULL CHECK (nature_of_request IN ('complaint', 'suggestions', 'praise')),
   description TEXT NOT NULL,
   privacy_consent INTEGER NOT NULL DEFAULT 0 CHECK (privacy_consent IN (0, 1)),
   status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Under Review', 'Resolved')),

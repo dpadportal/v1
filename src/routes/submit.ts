@@ -19,9 +19,9 @@ const SUBMIT_RATE_LIMIT = 5;
 const SUBMIT_RATE_WINDOW = 60;
 
 const NATURE_LABELS: Record<NatureOfRequest, string> = {
-  "concern-complaint": "Concern/Complaint",
-  request: "Request",
-  inquiry: "Inquiry",
+  complaint: "Complaint",
+  suggestions: "Suggestions",
+  praise: "Praise",
 };
 
 const submit = new Hono<{ Bindings: Env }>();

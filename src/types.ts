@@ -6,7 +6,7 @@ export interface Env {
   RESEND_API_KEY?: string;
 }
 
-export const NATURE_VALUES = ["concern-complaint", "request", "inquiry"] as const;
+export const NATURE_VALUES = ["complaint", "suggestions", "praise"] as const;
 export type NatureOfRequest = (typeof NATURE_VALUES)[number];
 
 export const TICKET_STATUSES = ["Pending", "Under Review", "Resolved"] as const;
