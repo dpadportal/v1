@@ -19,6 +19,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/vfs_fonts.js"></script>
+  <script src="/intake-pdf.js"></script>
   <style>
     body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
     .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
@@ -126,13 +129,49 @@
 
   <div id="toast" class="toast hidden px-4 py-3 rounded-xl shadow-lg text-white font-semibold text-sm"></div>
 
-  <div id="descModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto">
-      <div class="flex items-center justify-between mb-3">
-        <h3 id="descModalTitle" class="font-bold text-brand-dark text-lg">Description</h3>
-        <button id="descModalClose" type="button" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+  <div id="ticketModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+        <div>
+          <h3 id="ticketModalTitle" class="font-bold text-brand-dark text-lg">Ticket</h3>
+          <p id="ticketModalSub" class="text-xs text-gray-500"></p>
+        </div>
+        <button id="ticketModalClose" type="button" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
       </div>
-      <pre id="descModalBody" class="whitespace-pre-wrap font-sans text-sm text-gray-700"></pre>
+
+      <div class="px-6 py-5 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+          <div><p class="text-xs font-bold text-gray-500 uppercase">Received</p><p id="mDate" class="text-sm"></p></div>
+          <div><p class="text-xs font-bold text-gray-500 uppercase">Status</p><p id="mStatus" class="text-sm font-semibold"></p></div>
+          <div><p class="text-xs font-bold text-gray-500 uppercase">Name</p><p id="mName" class="text-sm"></p></div>
+          <div><p class="text-xs font-bold text-gray-500 uppercase">Contact</p><p id="mContact" class="text-sm"></p></div>
+          <div><p class="text-xs font-bold text-gray-500 uppercase">Email</p><p id="mEmail" class="text-sm"></p></div>
+          <div><p class="text-xs font-bold text-gray-500 uppercase">Nature</p><p id="mNature" class="text-sm"></p></div>
+          <div><p class="text-xs font-bold text-gray-500 uppercase">School / Office</p><p id="mSchool" class="text-sm"></p></div>
+          <div><p class="text-xs font-bold text-gray-500 uppercase">District</p><p id="mDistrict" class="text-sm"></p></div>
+        </div>
+
+        <div>
+          <p class="text-xs font-bold text-gray-500 uppercase mb-1">Description</p>
+          <pre id="mDescription" class="whitespace-pre-wrap font-sans text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl p-3"></pre>
+        </div>
+
+        <div class="border-t border-gray-100 pt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <button id="intakeLinkBtn" type="button"
+            class="rounded-lg bg-brand text-white font-bold px-4 py-2 text-sm hover:bg-brand-dark transition whitespace-nowrap">
+            Open Intake Form
+          </button>
+          <div class="flex-1 flex gap-2">
+            <input id="emailToInput" type="email" placeholder="Email address to send the intake form…"
+              class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+            <button id="emailSendBtn" type="button"
+              class="rounded-lg bg-brand-light text-white font-bold px-4 py-2 text-sm hover:bg-brand transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+              Send
+            </button>
+          </div>
+        </div>
+        <p id="emailHint" class="hidden text-xs text-gray-500">Generating PDF…</p>
+      </div>
     </div>
   </div>
 
@@ -250,7 +289,7 @@
             '<td class="px-4 py-3 text-xs">' + esc(t.district || "—") + "</td>" +
             '<td class="px-4 py-3 text-xs">' + esc(NATURE_LABELS[t.nature_of_request] || t.nature_of_request) + "</td>" +
             '<td class="px-4 py-3 text-xs max-w-[220px]">' +
-            '<button type="button" class="text-left text-gray-700 hover:text-brand underline decoration-dotted" onclick="openDesc(' + t.id + ')">' +
+            '<button type="button" class="text-left text-gray-700 hover:text-brand underline decoration-dotted" onclick="openTicket(' + t.id + ')">' +
             esc((t.description || "").slice(0, 90)) + (t.description && t.description.length > 90 ? "…" : "") + "</button></td>" +
             '<td class="px-4 py-3"><select data-id="' + t.id + '" class="status-select rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold ' +
             (STATUS_COLORS[t.status] || "") + '">' +
@@ -278,20 +317,29 @@
       });
     }
 
-    window.openDesc = function (id) {
-      var status = document.getElementById("statusFilter").value;
-      var q = document.getElementById("searchInput").value.trim();
-      var params = new URLSearchParams();
-      if (status) params.set("status", status);
-      if (q) params.set("q", q);
-      api("/api/admin/tickets?" + params.toString() + "&limit=200&offset=0").then(function (data) {
-        var t = (data.tickets || []).find(function (x) { return x.id === id; });
-        if (!t) { toast("Ticket no longer listed.", false); return; }
-        document.getElementById("descModalTitle").textContent = t.arta_reference_no;
-        document.getElementById("descModalBody").textContent = t.description;
-        document.getElementById("descModal").classList.remove("hidden");
+    var currentTicket = null;
+
+    window.openTicket = function (id) {
+      api("/api/admin/tickets/" + id).then(function (data) {
+        currentTicket = data.ticket;
+        document.getElementById("ticketModalTitle").textContent = data.ticket.arta_reference_no;
+        document.getElementById("ticketModalSub").textContent = "Ticket ID " + data.ticket.id;
+        document.getElementById("mDate").textContent = (data.ticket.created_at || "").slice(0, 16);
+        document.getElementById("mStatus").textContent = data.ticket.status;
+        document.getElementById("mName").textContent = data.ticket.full_name || "—";
+        document.getElementById("mContact").textContent = data.ticket.cellphone_number || "—";
+        document.getElementById("mEmail").textContent = data.ticket.email_address;
+        document.getElementById("mNature").textContent = NATURE_LABELS[data.ticket.nature_of_request] || data.ticket.nature_of_request;
+        document.getElementById("mSchool").textContent = data.ticket.school_name;
+        document.getElementById("mDistrict").textContent = data.ticket.district || "—";
+        document.getElementById("mDescription").textContent = data.ticket.description;
+        document.getElementById("emailToInput").value = "";
+        document.getElementById("emailToInput").placeholder = "Email address to send the intake form…";
+        document.getElementById("emailSendBtn").disabled = false;
+        document.getElementById("ticketModal").classList.remove("hidden");
       }).catch(function (e) {
         if (e.message === "unauthorized") showLogin("Session expired. Sign in again.");
+        else toast(e.message, false);
       });
     };
 
@@ -349,11 +397,42 @@
       loadTickets();
     });
 
-    document.getElementById("descModalClose").addEventListener("click", function () {
-      document.getElementById("descModal").classList.add("hidden");
+    document.getElementById("ticketModalClose").addEventListener("click", function () {
+      document.getElementById("ticketModal").classList.add("hidden");
     });
-    document.getElementById("descModal").addEventListener("click", function (e) {
+    document.getElementById("ticketModal").addEventListener("click", function (e) {
       if (e.target === this) this.classList.add("hidden");
+    });
+
+    document.getElementById("intakeLinkBtn").addEventListener("click", function () {
+      if (currentTicket) {
+        window.open("/intake?id=" + currentTicket.id, "_blank");
+      }
+    });
+
+    document.getElementById("emailSendBtn").addEventListener("click", function () {
+      var to = document.getElementById("emailToInput").value.trim();
+      if (!currentTicket || !to) {
+        toast("Enter an email address to send the intake form to.", false);
+        return;
+      }
+      var btn = document.getElementById("emailSendBtn");
+      var hint = document.getElementById("emailHint");
+      btn.disabled = true;
+      hint.textContent = "Generating PDF…";
+      hint.classList.remove("hidden");
+      getIntakePdfBase64(currentTicket, function (base64) {
+        hint.textContent = "Sending email…";
+        api("/api/admin/tickets/" + currentTicket.id + "/email", "POST", { to: to, pdfBase64: base64 }).then(function () {
+          hint.classList.add("hidden");
+          toast("Intake form sent to " + to + ".", true);
+        }).catch(function (err) {
+          hint.classList.add("hidden");
+          btn.disabled = false;
+          if (err.message === "unauthorized") showLogin("Session expired. Sign in again.");
+          else toast(err.message, false);
+        });
+      });
     });
 
     document.getElementById("ticketsBody").addEventListener("change", function (e) {

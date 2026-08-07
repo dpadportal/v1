@@ -50,7 +50,9 @@ wrangler secret put ADMIN_PASSWORD
 | `/api/submit` | POST | Validates payload, verifies OTP + CAPTCHA, inserts ticket into D1, emails the ARTA reference |
 | `/api/track/:ref` | GET | Looks up a ticket by `ARTA-YYYY-XXXXX` and returns its status |
 | `/api/admin/tickets` | GET | Lists tickets (filter: `status`, `q`; page: `limit`, `offset`) — requires Basic Auth |
+| `/api/admin/tickets/:id` | GET | Returns one full ticket — requires Basic Auth |
 | `/api/admin/tickets/:id` | PATCH | Updates a ticket's status and emails the submitter — requires Basic Auth |
+| `/api/admin/tickets/:id/email` | POST | Emails the filled intake form (PDF attachment) to an address — requires Basic Auth |
 | `/api/admin/stats` | GET | Counts per status — requires Basic Auth |
 
 ## Deploying

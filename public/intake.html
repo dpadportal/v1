@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Intake Form | DPAC Portal</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: "#2e6b27", "brand-dark": "#1d4518" },
+          fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"] },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/vfs_fonts.js"></script>
+  <script src="/intake-pdf.js"></script>
+  <style>
+    body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
+    .intake-sheet {
+      max-width: 820px;
+      margin: 0 auto;
+      background: #fff;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+      border: 1px solid #e5e7eb;
+    }
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #1d4518;
+      border-bottom: 2px solid #2e6b27;
+      padding-bottom: 4px;
+      margin: 1.6rem 0 0.9rem;
+    }
+    .field-row {
+      display: flex;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 0.95rem;
+    }
+    .field-label {
+      width: 34%;
+      font-weight: 700;
+      padding: 10px 14px;
+      background: #f9fafb;
+      border-right: 1px solid #e5e7eb;
+      color: #374151;
+    }
+    .field-value {
+      width: 66%;
+      padding: 10px 14px;
+      color: #111827;
+      white-space: pre-wrap;
+    }
+    @media print {
+      body { background: #fff; }
+      .no-print { display: none !important; }
+      .intake-sheet { box-shadow: none; border: none; max-width: 100%; }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased">
+  <div class="no-print sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-gray-200">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="/sdo.png" alt="Logo" class="h-10 w-10 rounded-lg shadow" />
+        <div>
+          <p class="font-bold text-lg text-brand-dark leading-tight">Clients' Feedback Intake Sheet</p>
+          <p class="text-xs text-gray-500 leading-tight" id="subtitleLine">Loading ticket…</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="printBtn" type="button"
+          class="rounded-lg bg-gray-200 font-semibold px-4 py-2 text-sm hover:bg-gray-300 transition">
+          Print
+        </button>
+        <button id="pdfBtn" type="button"
+          class="rounded-lg bg-brand text-white font-bold px-4 py-2 text-sm hover:bg-brand-dark transition">
+          Download as PDF
+        </button>
+        <a href="/admin" class="rounded-lg border border-gray-300 bg-white font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition">
+          Back to Admin
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <main class="px-4 py-8">
+    <p id="errorBox" class="hidden max-w-3xl mx-auto mb-6 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-semibold"></p>
+
+    <div id="sheet" class="intake-sheet rounded-xl p-8">
+      <div class="text-center">
+        <p class="text-sm">Republic of the Philippines</p>
+        <p class="text-sm">Department of Education</p>
+        <p class="font-bold">SCHOOLS DIVISION OF NUEVA ECIJA</p>
+        <p class="font-bold">DIVISION PUBLIC ASSISTANCE COMMITTEE (DPAC) PORTAL</p>
+        <div class="my-4 border-t-2 border-dotted border-gray-400"></div>
+        <h1 class="text-xl font-extrabold tracking-wide">CLIENTS' FEEDBACK INTAKE SHEET</h1>
+        <p class="text-sm mt-1">DIVISION PUBLIC ASSISTANCE DESK (DPAC) Reference &amp; Action Transmittal Report</p>
+      </div>
+
+      <p class="section-title">TICKET IDENTIFICATION &amp; ENDORSEMENT DETAILS</p>
+      <div class="field-row"><div class="field-label">Ticket Reference No.:</div><div class="field-value" id="fRef">—</div></div>
+      <div class="field-row"><div class="field-label">Endorsement Date:</div><div class="field-value" id="fDate">—</div></div>
+      <div class="field-row"><div class="field-label">Ticket Status:</div><div class="field-value" id="fStatus">—</div></div>
+      <div class="field-row"><div class="field-label">Referred To (SDO Unit):</div><div class="field-value" id="fDistrict">—</div></div>
+
+      <p class="section-title">COMPLAINANT / CLIENT INFORMATION</p>
+      <div class="field-row"><div class="field-label">Name of Client/Caller:</div><div class="field-value" id="fName">—</div></div>
+      <div class="field-row"><div class="field-label">Contact Number(s):</div><div class="field-value" id="fContact">—</div></div>
+      <div class="field-row"><div class="field-label">Email Address:</div><div class="field-value" id="fEmail">—</div></div>
+
+      <p class="section-title">NATURE AND DETAILS OF CONCERN / COMPLAINT</p>
+      <div class="field-row"><div class="field-label">Nature of Call or Request:</div><div class="field-value" id="fNature">—</div></div>
+      <div class="field-row"><div class="field-label">District:</div><div class="field-value" id="fDistrict2">—</div></div>
+      <div class="field-row"><div class="field-label">School / Office:</div><div class="field-value" id="fSchool">—</div></div>
+      <div class="field-row"><div class="field-label">Summary of Feedback:</div><div class="field-value" id="fDescription">—</div></div>
+
+      <p class="section-title">ACTION REQUIRED &amp; SDO DISPOSITION</p>
+      <p class="text-sm font-bold mb-2">Remarks / Action Taken by SDO DPAD:</p>
+      <div class="border-t border-gray-300 my-3"></div>
+      <div class="border-t border-gray-300 my-4"></div>
+      <p class="text-sm">Received</p>
+
+      <p class="section-title">DPAD RECEIVING OFFICER</p>
+      <div class="border-t-2 border-gray-800 w-64 my-10"></div>
+      <p class="text-sm font-bold">Public Assistance &amp; Complaints Desk <span class="font-normal text-gray-500">Date: ____________</span></p>
+    </div>
+  </main>
+
+  <script>
+    var AUTH_KEY = "arta-admin-auth";
+    var NATURE_LABELS = { complaint: "Complaint", suggestions: "Suggestions", praise: "Praise" };
+    var ticket = null;
+
+    function esc(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function showError(msg) {
+      var box = document.getElementById("errorBox");
+      box.textContent = msg;
+      box.classList.remove("hidden");
+      document.getElementById("sheet").classList.add("hidden");
+    }
+
+    function render() {
+      document.getElementById("subtitleLine").textContent = ticket.arta_reference_no;
+      document.getElementById("fRef").textContent = ticket.arta_reference_no;
+      document.getElementById("fDate").textContent = (ticket.created_at || "").slice(0, 16);
+      document.getElementById("fStatus").textContent = ticket.status;
+      document.getElementById("fDistrict").textContent = ticket.district || "—";
+      document.getElementById("fName").textContent = ticket.full_name || "—";
+      document.getElementById("fContact").textContent = ticket.cellphone_number || "—";
+      document.getElementById("fEmail").textContent = ticket.email_address;
+      document.getElementById("fNature").textContent = NATURE_LABELS[ticket.nature_of_request] || ticket.nature_of_request;
+      document.getElementById("fDistrict2").textContent = ticket.district || "—";
+      document.getElementById("fSchool").textContent = ticket.school_name;
+      document.getElementById("fDescription").textContent = ticket.description;
+    }
+
+    async function load() {
+      var params = new URLSearchParams(location.search);
+      var id = params.get("id");
+      var auth = sessionStorage.getItem(AUTH_KEY);
+
+      if (!id || !auth) {
+        showError("Missing ticket or you are not signed in. Return to the admin panel and open the ticket again.");
+        return;
+      }
+
+      try {
+        var res = await fetch("/api/admin/tickets/" + id, {
+          headers: { "Authorization": "Basic " + auth },
+        });
+        if (res.status === 401 || res.status === 503) {
+          showError("Session expired. Return to the admin panel and sign in again.");
+          return;
+        }
+        var data = await res.json();
+        if (!res.ok || !data.ok) {
+          showError(data.error || "Could not load the ticket.");
+          return;
+        }
+        ticket = data.ticket;
+        render();
+      } catch (e) {
+        showError("Could not load the ticket. Check your connection and try again.");
+      }
+    }
+
+    document.getElementById("pdfBtn").addEventListener("click", function () {
+      if (ticket) downloadIntakePdf(ticket);
+    });
+
+    document.getElementById("printBtn").addEventListener("click", function () {
+      window.print();
+    });
+
+    load();
+  </script>
+</body>
+</html>

@@ -16,6 +16,7 @@ app.route("/api/track", track);
 app.route("/api/admin", admin);
 
 app.get("/admin", (c) => c.env.ASSETS.fetch(new Request(new URL("/admin.html", c.req.url), c.req.raw)));
+app.get("/intake", (c) => c.env.ASSETS.fetch(new Request(new URL("/intake.html", c.req.url), c.req.raw)));
 
 app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 

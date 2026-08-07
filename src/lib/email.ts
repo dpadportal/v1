@@ -28,11 +28,18 @@ interface SmtpReply {
   message: string;
 }
 
+export interface EmailAttachment {
+  filename: string;
+  contentType: string;
+  base64: string;
+}
+
 async function smtpSend(
   env: Env,
   to: string,
   subject: string,
-  html: string
+  html: string,
+  attachments: EmailAttachment[] = []
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const { SMTP_USER, SMTP_PASSWORD } = env;
   if (!SMTP_USER || !SMTP_PASSWORD) {
@@ -106,11 +113,33 @@ async function smtpSend(
     await writeLine(`From: ${env.EMAIL_FROM}`);
     await writeLine(`To: ${to}`);
     await writeLine(`Subject: ${subject}`);
-    await writeLine("MIME-Version: 1.0");
-    await writeLine("Content-Type: text/html; charset=UTF-8");
-    await writeLine("Content-Transfer-Encoding: 8bit");
-    await writeLine("");
-    await writeLine(body);
+    if (attachments.length > 0) {
+      const boundary = `ARTA_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+      await writeLine("MIME-Version: 1.0");
+      await writeLine(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+      await writeLine("");
+      await writeLine(`--${boundary}`);
+      await writeLine("Content-Type: text/html; charset=UTF-8");
+      await writeLine("Content-Transfer-Encoding: 8bit");
+      await writeLine("");
+      await writeLine(body);
+      for (const att of attachments) {
+        await writeLine(`--${boundary}`);
+        await writeLine(`Content-Type: ${att.contentType}; name="${att.filename}"`);
+        await writeLine("Content-Transfer-Encoding: base64");
+        await writeLine(`Content-Disposition: attachment; filename="${att.filename}"`);
+        await writeLine("");
+        const lines = att.base64.replace(/\s+/g, "").match(/.{1,76}/g) ?? [""];
+        for (const line of lines) await writeLine(line);
+      }
+      await writeLine(`--${boundary}--`);
+    } else {
+      await writeLine("MIME-Version: 1.0");
+      await writeLine("Content-Type: text/html; charset=UTF-8");
+      await writeLine("Content-Transfer-Encoding: 8bit");
+      await writeLine("");
+      await writeLine(body);
+    }
     await writeLine(".");
     await expect(250, "message accepted");
 
@@ -210,4 +239,34 @@ export async function sendStatusUpdateEmail(
 
   const result = await smtpSend(env, to, `Status update for ${safeReference}`, html);
   return result;
+}
+
+export async function sendIntakeFormEmail(
+  env: Env,
+  to: string,
+  referenceNo: string,
+  pdfBase64: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const safeReference = escapeHtml(referenceNo);
+  const filename = `Intake-Form-${referenceNo}.pdf`;
+  const html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+      <h2 style="margin: 0 0 12px; color: #2e6b27;">Intake form / Intake form</h2>
+      <p style="margin: 0 0 8px; color: #374151;">Attached is the Clients' Feedback Intake Sheet for ticket <strong>${safeReference}</strong>.</p>
+      <p style="margin: 0; font-size: 12px; color: #6b7280;">Kalakip ang Clients' Feedback Intake Sheet para sa ticket <strong>${safeReference}</strong>.</p>
+    </div>
+  `;
+
+  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
+    console.log(`[dev] Intake form email for ${to}: ${referenceNo}`);
+    return { ok: true };
+  }
+
+  return smtpSend(
+    env,
+    to,
+    `Clients' Feedback Intake Sheet - ${referenceNo}`,
+    html,
+    [{ filename, contentType: "application/pdf", base64: pdfBase64 }]
+  );
 }
