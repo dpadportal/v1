@@ -41,6 +41,9 @@
       </div>
       <div class="flex items-center gap-3">
         <span id="loginUser" class="text-sm font-semibold text-gray-600 hidden"></span>
+        <a href="/accounts" class="hidden rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition" id="accountsLink">
+          Accounts
+        </a>
         <button id="logoutBtn" type="button" class="hidden px-4 py-2 rounded-lg bg-gray-200 font-semibold text-sm hover:bg-gray-300 transition">
           Log out
         </button>
@@ -246,6 +249,7 @@
       document.getElementById("loginSection").classList.add("hidden");
       document.getElementById("dashboardSection").classList.remove("hidden");
       document.getElementById("logoutBtn").classList.remove("hidden");
+      document.getElementById("accountsLink").classList.remove("hidden");
       document.getElementById("loginUser").classList.remove("hidden");
       document.getElementById("loginUser").textContent = "Signed in as " + atob(auth).split(":")[0];
       loadAll();
@@ -256,6 +260,7 @@
       sessionStorage.removeItem(AUTH_KEY);
       document.getElementById("dashboardSection").classList.add("hidden");
       document.getElementById("logoutBtn").classList.add("hidden");
+      document.getElementById("accountsLink").classList.add("hidden");
       document.getElementById("loginUser").classList.add("hidden");
       document.getElementById("loginSection").classList.remove("hidden");
       if (msg) {

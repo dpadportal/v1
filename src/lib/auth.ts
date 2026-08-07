@@ -1,5 +1,7 @@
 import type { Context } from "hono";
 import type { Env } from "../types";
+import { createRateLimiter, clientIp } from "./rate-limit";
+import { hashPassword, verifyPassword } from "./password";
 
 function safeEqual(a: string, b: string): boolean {
   const aBytes = new TextEncoder().encode(a);
@@ -8,21 +10,68 @@ function safeEqual(a: string, b: string): boolean {
   return crypto.subtle.timingSafeEqual(aBytes, bBytes);
 }
 
-export function adminGuard(
+export async function seedAdminUser(env: Env, username: string, password: string): Promise<void> {
+  const { salt, hash } = await hashPassword(password);
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO admin_users (username, password_salt, password_hash, role) VALUES (?, ?, ?, 'admin')`
+  )
+    .bind(username, salt, hash)
+    .run();
+}
+
+function unauthorized(c: Context<{ Bindings: Env }>): Response {
+  c.status(401);
+  return c.json({ ok: false, error: "Unauthorized." });
+}
+
+function rateLimited(c: Context<{ Bindings: Env }>): Response {
+  c.status(429);
+  return c.json({ ok: false, error: "Too many failed sign-in attempts. Try again later." });
+}
+
+export async function adminGuard(
   c: Context<{ Bindings: Env }>
-): Response | null {
-  const { ADMIN_USER, ADMIN_PASSWORD } = c.env;
-  if (!ADMIN_USER || !ADMIN_PASSWORD) {
-    c.status(503);
-    return c.json({ ok: false, error: "Admin panel is not configured." });
-  }
-
+): Promise<Response | null> {
   const header = c.req.header("Authorization") ?? "";
-  const expected = `Basic ${btoa(`${ADMIN_USER}:${ADMIN_PASSWORD}`)}`;
-  if (!safeEqual(header, expected)) {
-    c.status(401);
-    return c.json({ ok: false, error: "Unauthorized." });
+  if (!header.startsWith("Basic ")) return unauthorized(c);
+
+  let decoded = "";
+  try {
+    decoded = atob(header.slice(6));
+  } catch {
+    return unauthorized(c);
+  }
+  const colon = decoded.indexOf(":");
+  if (colon <= 0) return unauthorized(c);
+  const username = decoded.slice(0, colon);
+  const password = decoded.slice(colon + 1);
+  if (!username || !password) return unauthorized(c);
+
+  const limiter = createRateLimiter(c.env.KV, "rl:admin-auth", 10, 300);
+  const { allowed } = await limiter.check(clientIp(c));
+  if (!allowed) return rateLimited(c);
+
+  const row = await c.env.DB.prepare(
+    `SELECT id, password_salt, password_hash FROM admin_users WHERE username = ?`
+  )
+    .bind(username)
+    .first<{ id: number; password_salt: string; password_hash: string }>();
+
+  if (row) {
+    const ok = await verifyPassword(password, row.password_salt, row.password_hash);
+    return ok ? null : unauthorized(c);
   }
 
-  return null;
+  const { ADMIN_USER, ADMIN_PASSWORD } = c.env;
+  if (
+    ADMIN_USER &&
+    ADMIN_PASSWORD &&
+    safeEqual(username, ADMIN_USER) &&
+    safeEqual(password, ADMIN_PASSWORD)
+  ) {
+    await seedAdminUser(c.env, username, password);
+    return null;
+  }
+
+  return unauthorized(c);
 }

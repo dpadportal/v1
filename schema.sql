@@ -19,3 +19,12 @@ CREATE TABLE tickets (
 CREATE INDEX idx_tickets_email ON tickets (email_address);
 CREATE INDEX idx_tickets_status ON tickets (status);
 CREATE INDEX idx_tickets_created_at ON tickets (created_at);
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password_salt TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'admin',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

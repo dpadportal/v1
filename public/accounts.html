@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Management | DPAC Portal</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: "#2e6b27", "brand-dark": "#1d4518", "brand-light": "#4c9a42" },
+          fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"] },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 50; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased">
+  <header class="bg-white/85 backdrop-blur border-b border-gray-200 sticky top-0 z-40">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="/sdo.png" alt="Logo" class="h-12 w-12 rounded-lg shadow" />
+        <div>
+          <p class="font-bold text-xl text-brand-dark leading-tight">Account Management</p>
+          <p class="text-sm text-gray-500 leading-tight" id="loginUser"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="/admin" class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition">
+          Back to Admin
+        </a>
+        <button id="logoutBtn" type="button"
+          class="rounded-lg bg-gray-200 font-semibold px-4 py-2 text-sm hover:bg-gray-300 transition">
+          Log out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <p id="errorBox" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-semibold"></p>
+
+    <section class="bg-white rounded-2xl shadow overflow-x-auto">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h2 class="font-bold text-brand-dark">Admin accounts</h2>
+        <span id="accountCount" class="text-sm text-gray-500 font-medium"></span>
+      </div>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left text-gray-600 uppercase text-xs tracking-wide">
+            <th class="px-6 py-3">Username</th>
+            <th class="px-6 py-3">Role</th>
+            <th class="px-6 py-3">Created</th>
+            <th class="px-6 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="accountsBody"></tbody>
+      </table>
+    </section>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section class="bg-white rounded-2xl shadow p-6">
+        <h2 class="font-bold text-brand-dark mb-4">Add account</h2>
+        <form id="addForm" class="space-y-4">
+          <div>
+            <label for="newUsername" class="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+            <input id="newUsername" type="text" required autocomplete="off"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+          </div>
+          <div>
+            <label for="newPassword" class="block text-sm font-semibold text-gray-700 mb-1">Password (min. 8 characters)</label>
+            <input id="newPassword" type="password" required autocomplete="new-password" minlength="8"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+          </div>
+          <button type="submit"
+            class="rounded-lg bg-brand text-white font-bold px-5 py-2 text-sm hover:bg-brand-dark transition disabled:opacity-50">
+            Create account
+          </button>
+        </form>
+      </section>
+
+      <section class="bg-white rounded-2xl shadow p-6">
+        <h2 class="font-bold text-brand-dark mb-4">Change my password</h2>
+        <form id="passForm" class="space-y-4">
+          <div>
+            <label for="curPassword" class="block text-sm font-semibold text-gray-700 mb-1">Current password</label>
+            <input id="curPassword" type="password" required autocomplete="current-password"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+          </div>
+          <div>
+            <label for="newPass1" class="block text-sm font-semibold text-gray-700 mb-1">New password (min. 8 characters)</label>
+            <input id="newPass1" type="password" required autocomplete="new-password" minlength="8"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+          </div>
+          <div>
+            <label for="newPass2" class="block text-sm font-semibold text-gray-700 mb-1">Confirm new password</label>
+            <input id="newPass2" type="password" required autocomplete="new-password" minlength="8"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+          </div>
+          <button type="submit"
+            class="rounded-lg bg-brand text-white font-bold px-5 py-2 text-sm hover:bg-brand-dark transition disabled:opacity-50">
+            Update password
+          </button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <div id="toast" class="toast hidden px-4 py-3 rounded-xl shadow-lg text-white font-semibold text-sm"></div>
+
+  <script>
+    var AUTH_KEY = "arta-admin-auth";
+    var auth = null;
+    var currentUsername = null;
+
+    function esc(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function toast(msg, ok) {
+      var el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = "toast px-4 py-3 rounded-xl shadow-lg text-white font-semibold text-sm " + (ok ? "bg-brand" : "bg-red-600");
+      el.classList.remove("hidden");
+      clearTimeout(el._t);
+      el._t = setTimeout(function () { el.classList.add("hidden"); }, 4000);
+    }
+
+    function showError(msg) {
+      var el = document.getElementById("errorBox");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+    }
+
+    function authHeaders() {
+      return { "Authorization": "Basic " + auth, "Content-Type": "application/json" };
+    }
+
+    async function api(path, method, body) {
+      var res = await fetch(path, {
+        method: method || "GET",
+        headers: authHeaders(),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (res.status === 401 || res.status === 503) throw new Error("unauthorized");
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function logout() {
+      auth = null;
+      currentUsername = null;
+      sessionStorage.removeItem(AUTH_KEY);
+      window.location.href = "/admin";
+    }
+
+    async function loadAccounts() {
+      var data = await api("/api/admin/accounts");
+      document.getElementById("accountCount").textContent = data.accounts.length + " account(s)";
+      var tbody = document.getElementById("accountsBody");
+      tbody.innerHTML = data.accounts.map(function (a) {
+        var isMe = a.username === currentUsername;
+        return '<tr class="border-t border-gray-100">' +
+          '<td class="px-6 py-3 font-semibold">' + esc(a.username) + (isMe ? ' <span class="text-xs font-bold text-brand bg-brand/10 rounded-full px-2 py-0.5">you</span>' : "") + "</td>" +
+          '<td class="px-6 py-3 text-xs">' + esc(a.role) + "</td>" +
+          '<td class="px-6 py-3 text-xs text-gray-600">' + esc((a.created_at || "").slice(0, 16)) + "</td>" +
+          '<td class="px-6 py-3">' +
+          (isMe ? "" : '<button type="button" data-id="' + a.id + '" data-name="' + esc(a.username) + '" class="del-btn rounded-lg bg-red-50 text-red-700 border border-red-200 font-semibold px-3 py-1 text-xs hover:bg-red-100 transition">Delete</button>') +
+          "</td>" +
+          "</tr>";
+      }).join("");
+    }
+
+    function ensureAuth() {
+      auth = sessionStorage.getItem(AUTH_KEY);
+      if (!auth) { window.location.href = "/admin"; return false; }
+      return true;
+    }
+
+    async function init() {
+      if (!ensureAuth()) return;
+      try {
+        currentUsername = atob(auth).split(":")[0];
+        document.getElementById("loginUser").textContent = "Signed in as " + currentUsername;
+        await loadAccounts();
+      } catch (e) {
+        if (e.message === "unauthorized") logout();
+        else showError(e.message);
+      }
+    }
+
+    document.getElementById("addForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var username = document.getElementById("newUsername").value.trim();
+      var password = document.getElementById("newPassword").value;
+      api("/api/admin/accounts", "POST", { username: username, password: password }).then(function () {
+        toast("Account " + username + " created.", true);
+        document.getElementById("newUsername").value = "";
+        document.getElementById("newPassword").value = "";
+        loadAccounts();
+      }).catch(function (err) {
+        if (err.message === "unauthorized") logout();
+        else toast(err.message, false);
+      });
+    });
+
+    document.getElementById("passForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var cur = document.getElementById("curPassword").value;
+      var p1 = document.getElementById("newPass1").value;
+      var p2 = document.getElementById("newPass2").value;
+      if (p1 !== p2) { toast("New passwords do not match.", false); return; }
+
+      var tryReset = function (id) {
+        return api("/api/admin/accounts/" + id, "PATCH", { password: p1 }).then(function () {
+          toast("Password updated. Sign in again.", true);
+          logout();
+        });
+      };
+
+      api("/api/admin/accounts").then(function (data) {
+        var me = data.accounts.find(function (a) { return a.username === currentUsername; });
+        if (!me) throw new Error("Account not found");
+        return tryReset(me.id);
+      }).catch(function (err) {
+        if (err.message === "unauthorized") logout();
+        else toast(err.message, false);
+      });
+    });
+
+    document.getElementById("accountsBody").addEventListener("click", function (e) {
+      if (!e.target.classList.contains("del-btn")) return;
+      var name = e.target.dataset.name;
+      if (!confirm('Delete account "' + name + '"? This cannot be undone.')) return;
+      api("/api/admin/accounts/" + e.target.dataset.id, "DELETE").then(function () {
+        toast("Account " + name + " deleted.", true);
+        loadAccounts();
+      }).catch(function (err) {
+        if (err.message === "unauthorized") logout();
+        else toast(err.message, false);
+      });
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", logout);
+
+    init();
+  </script>
+</body>
+</html>

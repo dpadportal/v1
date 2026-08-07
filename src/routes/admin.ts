@@ -1,8 +1,9 @@
-import { Hono } from "hono";
+﻿import { Hono } from "hono";
 import type { Env, TicketStatus } from "../types";
 import { TICKET_STATUSES } from "../types";
 import { adminGuard } from "../lib/auth";
 import { EMAIL_RE, MAX_LENGTHS } from "../lib/validators";
+import { hashPassword } from "../lib/password";
 import { sendIntakeFormEmail, sendStatusUpdateEmail } from "../lib/email";
 
 const admin = new Hono<{ Bindings: Env }>();
@@ -12,7 +13,7 @@ function escapeLike(q: string): string {
 }
 
 admin.get("/stats", async (c) => {
-  const denied = adminGuard(c);
+  const denied = await adminGuard(c);
   if (denied) return denied;
 
   const rows = await c.env.DB.prepare(
@@ -54,7 +55,7 @@ admin.get("/stats", async (c) => {
 });
 
 admin.get("/tickets", async (c) => {
-  const denied = adminGuard(c);
+  const denied = await adminGuard(c);
   if (denied) return denied;
 
   const status = c.req.query("status");
@@ -95,7 +96,7 @@ admin.get("/tickets", async (c) => {
 });
 
 admin.patch("/tickets/:id", async (c) => {
-  const denied = adminGuard(c);
+  const denied = await adminGuard(c);
   if (denied) return denied;
 
   const id = Number(c.req.param("id"));
@@ -141,7 +142,7 @@ admin.patch("/tickets/:id", async (c) => {
 });
 
 admin.get("/tickets/export", async (c) => {
-  const denied = adminGuard(c);
+  const denied = await adminGuard(c);
   if (denied) return denied;
 
   const status = c.req.query("status");
@@ -218,7 +219,7 @@ admin.get("/tickets/export", async (c) => {
 });
 
 admin.get("/tickets/:id", async (c) => {
-  const denied = adminGuard(c);
+  const denied = await adminGuard(c);
   if (denied) return denied;
 
   const id = Number(c.req.param("id"));
@@ -241,7 +242,7 @@ admin.get("/tickets/:id", async (c) => {
 });
 
 admin.post("/tickets/:id/email", async (c) => {
-  const denied = adminGuard(c);
+  const denied = await adminGuard(c);
   if (denied) return denied;
 
   const id = Number(c.req.param("id"));
@@ -283,6 +284,136 @@ admin.post("/tickets/:id/email", async (c) => {
   }
 
   return c.json({ ok: true, message: `Intake form sent to ${to}.` });
+});
+
+const USERNAME_RE = /^[A-Za-z0-9_.-]{3,30}$/;
+
+admin.get("/accounts", async (c) => {
+  const denied = await adminGuard(c);
+  if (denied) return denied;
+
+  const rows = await c.env.DB.prepare(
+    `SELECT id, username, role, created_at FROM admin_users ORDER BY id`
+  ).all();
+
+  return c.json({ ok: true, accounts: rows.results });
+});
+
+admin.post("/accounts", async (c) => {
+  const denied = await adminGuard(c);
+  if (denied) return denied;
+
+  let body: { username?: unknown; password?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "Invalid request payload." }, 400);
+  }
+
+  const username = String(body.username ?? "").trim();
+  const password = String(body.password ?? "");
+  if (!USERNAME_RE.test(username)) {
+    return c.json({ ok: false, error: "Username must be 3-30 characters (letters, numbers, . _ -)." }, 400);
+  }
+  if (password.length < 8 || password.length > 100) {
+    return c.json({ ok: false, error: "Password must be 8-100 characters." }, 400);
+  }
+
+  const existing = await c.env.DB.prepare(
+    `SELECT id FROM admin_users WHERE username = ?`
+  )
+    .bind(username)
+    .first();
+  if (existing) {
+    return c.json({ ok: false, error: "That username is already taken." }, 409);
+  }
+
+  const { salt, hash } = await hashPassword(password);
+  await c.env.DB.prepare(
+    `INSERT INTO admin_users (username, password_salt, password_hash, role) VALUES (?, ?, ?, 'admin')`
+  )
+    .bind(username, salt, hash)
+    .run();
+
+  return c.json({ ok: true, message: `Account ${username} created.` });
+});
+
+admin.delete("/accounts/:id", async (c) => {
+  const denied = await adminGuard(c);
+  if (denied) return denied;
+
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.json({ ok: false, error: "Invalid account id." }, 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    `SELECT id, username FROM admin_users WHERE id = ?`
+  )
+    .bind(id)
+    .first<{ id: number; username: string }>();
+  if (!row) {
+    return c.json({ ok: false, error: "Account not found." }, 404);
+  }
+
+  const username = String(row.username);
+  const authHeader = c.req.header("Authorization") ?? "";
+  const decoded = atob(authHeader.slice(6));
+  const currentUser = decoded.slice(0, decoded.indexOf(":"));
+  if (currentUser === username) {
+    return c.json({ ok: false, error: "You cannot delete your own account." }, 400);
+  }
+
+  const countRow = await c.env.DB.prepare(
+    `SELECT COUNT(*) AS count FROM admin_users`
+  ).first<{ count: number }>();
+  if (Number(countRow?.count ?? 0) <= 1) {
+    return c.json({ ok: false, error: "Cannot delete the last remaining account." }, 400);
+  }
+
+  await c.env.DB.prepare(`DELETE FROM admin_users WHERE id = ?`).bind(id).run();
+
+  return c.json({ ok: true, message: `Account ${username} deleted.` });
+});
+
+admin.patch("/accounts/:id", async (c) => {
+  const denied = await adminGuard(c);
+  if (denied) return denied;
+
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.json({ ok: false, error: "Invalid account id." }, 400);
+  }
+
+  let body: { password?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "Invalid request payload." }, 400);
+  }
+
+  const password = String(body.password ?? "");
+  if (password.length < 8 || password.length > 100) {
+    return c.json({ ok: false, error: "Password must be 8-100 characters." }, 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    `SELECT id FROM admin_users WHERE id = ?`
+  )
+    .bind(id)
+    .first();
+  if (!row) {
+    return c.json({ ok: false, error: "Account not found." }, 404);
+  }
+
+  const { salt, hash } = await hashPassword(password);
+  await c.env.DB.prepare(
+    `UPDATE admin_users SET password_salt = ?, password_hash = ? WHERE id = ?`
+  )
+    .bind(salt, hash, id)
+    .run();
+
+  return c.json({ ok: true, message: "Password updated." });
 });
 
 export default admin;
