@@ -27,9 +27,14 @@
     body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
     .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 50; }
+    body.admin-bg {
+      background: linear-gradient(rgba(248, 250, 248, 0.9), rgba(248, 250, 248, 0.9)),
+        url("/background.jpg") no-repeat center center fixed;
+      background-size: cover;
+    }
   </style>
 </head>
-<body class="bg-gray-100 text-gray-900 antialiased">
+<body class="admin-bg text-gray-900 antialiased">
   <header class="glass border-b border-gray-200 sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 py-3 md:py-4 flex items-center justify-between gap-2 flex-wrap">
       <div class="flex items-center gap-2 md:gap-4 min-w-0">
@@ -41,6 +46,9 @@
       </div>
       <div class="flex items-center gap-2 md:gap-3">
         <span id="loginUser" class="hidden text-xs md:text-sm font-semibold text-gray-600 whitespace-nowrap"></span>
+        <a href="/logs" class="hidden rounded-lg bg-white border border-gray-300 font-semibold px-2 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition" id="logsLink">
+          Logs
+        </a>
         <a href="/accounts" class="hidden rounded-lg bg-white border border-gray-300 font-semibold px-2 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition" id="accountsLink">
           Accounts
         </a>
@@ -71,6 +79,12 @@
           class="w-full rounded-lg bg-brand text-white font-bold py-2.5 hover:bg-brand-dark transition">
           Sign in
         </button>
+        <div class="text-center">
+          <button id="forgotBtn" type="button"
+            class="text-sm font-semibold text-brand underline underline-offset-2 hover:text-brand-dark">
+            Forgot password?
+          </button>
+        </div>
       </form>
     </section>
 
@@ -156,6 +170,52 @@
 
   <div id="toast" class="toast hidden px-4 py-3 rounded-xl shadow-lg text-white font-semibold text-sm"></div>
 
+  <div id="recoveryModal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/60" id="recoveryBackdrop"></div>
+    <div class="relative z-10 min-h-full flex items-center justify-center p-4">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 bg-brand text-white">
+          <h2 class="text-lg font-bold">Recover access</h2>
+          <button id="recoveryClose" type="button" aria-label="Close"
+            class="h-9 w-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition text-xl font-semibold">&times;</button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <p class="text-sm text-gray-500">Answer the superadmin's security question to reset its password.</p>
+          <p id="recoveryError" class="hidden text-sm font-semibold text-red-600"></p>
+
+          <div id="recoverStep1">
+            <label for="recoveryUsername" class="block text-sm font-semibold text-gray-700 mb-1">Superadmin username</label>
+            <input id="recoveryUsername" type="text" autocomplete="off" placeholder="admin"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+            <button id="recoveryGetQ" type="button"
+              class="mt-3 w-full rounded-lg bg-brand text-white font-bold py-2 text-sm hover:bg-brand-dark transition">
+              Next
+            </button>
+          </div>
+
+          <div id="recoverStep2" class="hidden">
+            <p class="text-sm font-semibold text-gray-700">Security question</p>
+            <p id="recoveryQuestion" class="text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2"></p>
+            <div>
+              <label for="recoveryAnswer" class="block text-sm font-semibold text-gray-700 mb-1">Answer</label>
+              <input id="recoveryAnswer" type="text" autocomplete="off"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+            </div>
+            <div>
+              <label for="recoveryNewPass" class="block text-sm font-semibold text-gray-700 mb-1">New password (min. 8 characters)</label>
+              <input id="recoveryNewPass" type="password" autocomplete="new-password" minlength="8"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+            </div>
+            <button id="recoverySubmitBtn" type="button"
+              class="mt-2 w-full rounded-lg bg-brand text-white font-bold py-2 text-sm hover:bg-brand-dark transition">
+              Reset password
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="ticketModal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
       <div class="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
@@ -206,6 +266,7 @@
     var AUTH_KEY = "arta-admin-auth";
     var PAGE_SIZE = 25;
     var auth = null;
+    var currentUser = null;
     var page = 0;
     var total = 0;
 
@@ -233,6 +294,14 @@
       return { "Authorization": "Basic " + auth, "Content-Type": "application/json" };
     }
 
+    function logActivity(action, detail) {
+      fetch("/api/admin/activity", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ action: action, detail: detail }),
+      }).catch(function () {});
+    }
+
     async function api(path, method, body) {
       var res = await fetch(path, {
         method: method || "GET",
@@ -245,13 +314,18 @@
       return data;
     }
 
-    function showDashboard() {
+    function showDashboard(user) {
+      currentUser = user;
       document.getElementById("loginSection").classList.add("hidden");
       document.getElementById("dashboardSection").classList.remove("hidden");
       document.getElementById("logoutBtn").classList.remove("hidden");
       document.getElementById("accountsLink").classList.remove("hidden");
+      document.getElementById("logsLink").classList.remove("hidden");
       document.getElementById("loginUser").classList.remove("hidden");
-      document.getElementById("loginUser").textContent = "Signed in as " + atob(auth).split(":")[0];
+      document.getElementById("loginUser").innerHTML = "Signed in as <b>" + esc(user.username) + "</b>" +
+        (user.role === "superadmin"
+          ? ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5 align-middle">superadmin</span>'
+          : "");
       loadAll();
     }
 
@@ -261,6 +335,7 @@
       document.getElementById("dashboardSection").classList.add("hidden");
       document.getElementById("logoutBtn").classList.add("hidden");
       document.getElementById("accountsLink").classList.add("hidden");
+      document.getElementById("logsLink").classList.add("hidden");
       document.getElementById("loginUser").classList.add("hidden");
       document.getElementById("loginSection").classList.remove("hidden");
       if (msg) {
@@ -505,6 +580,7 @@
         document.getElementById("emailToInput").placeholder = "Email address to send the intake form…";
         document.getElementById("emailSendBtn").disabled = false;
         document.getElementById("ticketModal").classList.remove("hidden");
+        logActivity("viewed_ticket", data.ticket.arta_reference_no);
       }).catch(function (e) {
         if (e.message === "unauthorized") showLogin("Session expired. Sign in again.");
         else toast(e.message, false);
@@ -519,8 +595,8 @@
       auth = btoa(u + ":" + p);
       sessionStorage.setItem(AUTH_KEY, auth);
       document.getElementById("loginError").classList.add("hidden");
-      api("/api/admin/stats").then(function () {
-        showDashboard();
+      api("/api/admin/login", "POST").then(function (data) {
+        showDashboard(data.user);
       }).catch(function () {
         auth = null;
         sessionStorage.removeItem(AUTH_KEY);
@@ -651,11 +727,97 @@
       });
     });
 
+    function recoveryReset() {
+      document.getElementById("recoveryError").classList.add("hidden");
+      document.getElementById("recoverStep2").classList.add("hidden");
+      document.getElementById("recoverStep1").classList.remove("hidden");
+      document.getElementById("recoveryUsername").value = "";
+      document.getElementById("recoveryAnswer").value = "";
+      document.getElementById("recoveryNewPass").value = "";
+    }
+
+    function recoveryErr(msg) {
+      var el = document.getElementById("recoveryError");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+    }
+
+    document.getElementById("forgotBtn").addEventListener("click", function () {
+      recoveryReset();
+      document.getElementById("recoveryModal").classList.remove("hidden");
+      document.getElementById("recoveryUsername").value = document.getElementById("adminUser").value.trim();
+    });
+
+    document.getElementById("recoveryClose").addEventListener("click", function () {
+      document.getElementById("recoveryModal").classList.add("hidden");
+    });
+    document.getElementById("recoveryBackdrop").addEventListener("click", function () {
+      document.getElementById("recoveryModal").classList.add("hidden");
+    });
+
+    document.getElementById("recoveryGetQ").addEventListener("click", function () {
+      var username = document.getElementById("recoveryUsername").value.trim();
+      if (!username) { recoveryErr("Enter the superadmin username."); return; }
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = "Checking…";
+      fetch("/api/admin/accounts/recovery?username=" + encodeURIComponent(username))
+        .then(function (res) { return res.json().catch(function () { return {}; }); })
+        .then(function (data) {
+          btn.disabled = false;
+          btn.textContent = "Next";
+          if (!data.ok) { recoveryErr(data.error || "Account not found."); return; }
+          document.getElementById("recoveryQuestion").textContent = data.question;
+          document.getElementById("recoverStep1").classList.add("hidden");
+          document.getElementById("recoverStep2").classList.remove("hidden");
+        })
+        .catch(function () {
+          btn.disabled = false;
+          btn.textContent = "Next";
+          recoveryErr("Could not reach the server. Try again.");
+        });
+    });
+
+    document.getElementById("recoverySubmitBtn").addEventListener("click", function () {
+      var username = document.getElementById("recoveryUsername").value.trim();
+      var answer = document.getElementById("recoveryAnswer").value.trim();
+      var pass = document.getElementById("recoveryNewPass").value;
+      if (!answer || pass.length < 8) {
+        recoveryErr("Fill in the answer and a new password (min. 8 characters).");
+        return;
+      }
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = "Resetting…";
+      fetch("/api/admin/accounts/recovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username, answer: answer, newPassword: pass }),
+      }).then(function (res) { return res.json().catch(function () { return {}; }); })
+        .then(function (data) {
+          btn.disabled = false;
+          btn.textContent = "Reset password";
+          if (!data.ok) { recoveryErr(data.error || "Recovery failed."); return; }
+          document.getElementById("recoveryModal").classList.add("hidden");
+          document.getElementById("adminUser").value = username;
+          document.getElementById("adminPass").value = "";
+          toast("Password reset. Sign in with your new password.", true);
+          showLogin();
+        })
+        .catch(function () {
+          btn.disabled = false;
+          btn.textContent = "Reset password";
+          recoveryErr("Could not reach the server. Try again.");
+        });
+    });
+
     (function init() {
       var stored = sessionStorage.getItem(AUTH_KEY);
       if (stored) {
         auth = stored;
-        api("/api/admin/stats").then(showDashboard).catch(function () { showLogin(); });
+        api("/api/admin/me").then(function (data) {
+          showDashboard(data.user);
+        }).catch(function () { showLogin(); });
       }
     })();
   </script>

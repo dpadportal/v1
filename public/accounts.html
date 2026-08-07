@@ -35,6 +35,9 @@
         </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
+        <a href="/logs" class="rounded-lg bg-white border border-gray-300 font-semibold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition">
+          Logs
+        </a>
         <a href="/admin" class="rounded-lg bg-white border border-gray-300 font-semibold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition">
           Back to Admin
         </a>
@@ -48,6 +51,9 @@
 
   <main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
     <p id="errorBox" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-semibold"></p>
+    <p id="viewOnlyNotice" class="hidden bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm font-semibold">
+      You are signed in as an admin. Only the superadmin can create or delete accounts.
+    </p>
 
     <section class="bg-white rounded-2xl shadow overflow-x-auto">
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -68,7 +74,7 @@
     </section>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <section class="bg-white rounded-2xl shadow p-6">
+      <section id="addSection" class="bg-white rounded-2xl shadow p-6">
         <h2 class="font-bold text-brand-dark mb-4">Add account</h2>
         <form id="addForm" class="space-y-4">
           <div>
@@ -113,6 +119,28 @@
         </form>
       </section>
     </div>
+
+    <section id="recoverySection" class="hidden bg-white rounded-2xl shadow p-6 max-w-xl">
+      <h2 class="font-bold text-brand-dark mb-3">Recovery question (superadmin)</h2>
+      <p id="recoveryState" class="text-sm text-gray-600 mb-4">Not set.</p>
+      <form id="recoveryForm" class="space-y-4">
+        <div>
+          <label for="rcvQuestion" class="block text-sm font-semibold text-gray-700 mb-1">Security question</label>
+          <input id="rcvQuestion" type="text" maxlength="200"
+            placeholder="e.g. What was the name of your first pet?"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+        </div>
+        <div>
+          <label for="rcvAnswer" class="block text-sm font-semibold text-gray-700 mb-1">Answer (min. 8 characters, used only for account recovery)</label>
+          <input id="rcvAnswer" type="text" minlength="8"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+        </div>
+        <button type="submit"
+          class="rounded-lg bg-brand text-white font-bold px-5 py-2 text-sm hover:bg-brand-dark transition">
+          Save recovery question
+        </button>
+      </form>
+    </section>
   </main>
 
   <div id="toast" class="toast hidden px-4 py-3 rounded-xl shadow-lg text-white font-semibold text-sm"></div>
@@ -121,6 +149,7 @@
     var AUTH_KEY = "arta-admin-auth";
     var auth = null;
     var currentUsername = null;
+    var currentRole = null;
 
     function esc(s) {
       return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -172,10 +201,10 @@
         var isMe = a.username === currentUsername;
         return '<tr class="border-t border-gray-100">' +
           '<td class="px-6 py-3 font-semibold">' + esc(a.username) + (isMe ? ' <span class="text-xs font-bold text-brand bg-brand/10 rounded-full px-2 py-0.5">you</span>' : "") + "</td>" +
-          '<td class="px-6 py-3 text-xs">' + esc(a.role) + "</td>" +
+          '<td class="px-6 py-3 text-xs">' + esc(a.role) + (a.role === "superadmin" ? ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5">locked</span>' : "") + "</td>" +
           '<td class="px-6 py-3 text-xs text-gray-600">' + esc((a.created_at || "").slice(0, 16)) + "</td>" +
           '<td class="px-6 py-3">' +
-          (isMe ? "" : '<button type="button" data-id="' + a.id + '" data-name="' + esc(a.username) + '" class="del-btn rounded-lg bg-red-50 text-red-700 border border-red-200 font-semibold px-3 py-1 text-xs hover:bg-red-100 transition">Delete</button>') +
+          (isMe || currentRole !== "superadmin" ? "" : '<button type="button" data-id="' + a.id + '" data-name="' + esc(a.username) + '" class="del-btn rounded-lg bg-red-50 text-red-700 border border-red-200 font-semibold px-3 py-1 text-xs hover:bg-red-100 transition">Delete</button>') +
           "</td>" +
           "</tr>";
       }).join("");
@@ -191,11 +220,36 @@
       if (!ensureAuth()) return;
       try {
         currentUsername = atob(auth).split(":")[0];
-        document.getElementById("loginUser").textContent = "Signed in as " + currentUsername;
+        var me = await api("/api/admin/me");
+        currentRole = me.user.role;
+        document.getElementById("loginUser").innerHTML = "Signed in as <b>" + esc(currentUsername) + "</b>" +
+          (currentRole === "superadmin"
+            ? ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5 align-middle">superadmin</span>'
+            : "");
+        if (currentRole === "superadmin") {
+          document.getElementById("recoverySection").classList.remove("hidden");
+        } else {
+          document.getElementById("addSection").classList.add("hidden");
+          document.getElementById("viewOnlyNotice").classList.remove("hidden");
+        }
         await loadAccounts();
+        if (currentRole === "superadmin") refreshRecovery();
       } catch (e) {
         if (e.message === "unauthorized") logout();
         else showError(e.message);
+      }
+    }
+
+    async function refreshRecovery() {
+      try {
+        var data = await api("/api/admin/accounts");
+        var me = data.accounts.find(function (a) { return a.username === currentUsername; });
+        if (me && me.recovery_question) {
+          document.getElementById("recoveryState").textContent = "Set to: " + me.recovery_question;
+          document.getElementById("rcvQuestion").value = me.recovery_question;
+        }
+      } catch (e) {
+        if (e.message === "unauthorized") logout();
       }
     }
 
@@ -252,6 +306,26 @@
     });
 
     document.getElementById("logoutBtn").addEventListener("click", logout);
+
+    document.getElementById("recoveryForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var q = document.getElementById("rcvQuestion").value.trim();
+      var a = document.getElementById("rcvAnswer").value.trim();
+      if (!q) { toast("Enter a security question.", false); return; }
+      if (a.length < 8) { toast("Answer must be at least 8 characters.", false); return; }
+      api("/api/admin/accounts").then(function (data) {
+        var me = data.accounts.find(function (x) { return x.username === currentUsername; });
+        if (!me) throw new Error("Account not found");
+        return api("/api/admin/accounts/" + me.id, "PATCH", { recovery_question: q, recovery_answer: a });
+      }).then(function () {
+        toast("Recovery question saved.", true);
+        document.getElementById("recoveryState").textContent = "Set to: " + q;
+        document.getElementById("rcvAnswer").value = "";
+      }).catch(function (err) {
+        if (err.message === "unauthorized") logout();
+        else toast(err.message, false);
+      });
+    });
 
     init();
   </script>

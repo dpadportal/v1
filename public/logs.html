@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity Log | DPAC Portal</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: "#2e6b27", "brand-dark": "#1d4518", "brand-light": "#4c9a42" },
+          fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"] },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+      background: linear-gradient(rgba(248, 250, 248, 0.92), rgba(248, 250, 248, 0.92)),
+        url("/background.jpg") no-repeat center center fixed;
+      background-size: cover;
+    }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 50; }
+  </style>
+</head>
+<body class="text-gray-900 antialiased">
+  <header class="bg-white/85 backdrop-blur border-b border-gray-200 sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 py-3 md:py-4 flex items-center justify-between gap-2 flex-wrap">
+      <div class="flex items-center gap-2 md:gap-3 min-w-0">
+        <img src="/sdo.png" alt="Logo" class="h-9 w-9 md:h-12 md:w-12 rounded-lg shadow shrink-0" />
+        <div class="min-w-0">
+          <p class="font-bold text-base md:text-xl text-brand-dark leading-tight truncate">Activity Log</p>
+          <p class="text-xs md:text-sm text-gray-500 leading-tight truncate" id="loginUser"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <button id="exportBtn" type="button"
+          class="rounded-lg bg-brand text-white font-bold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-brand-dark transition">
+          Download report (CSV)
+        </button>
+        <a href="/admin" class="rounded-lg bg-white border border-gray-300 font-semibold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition">
+          Back to Admin
+        </a>
+        <button id="logoutBtn" type="button"
+          class="rounded-lg bg-gray-200 font-semibold px-3 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-300 transition">
+          Log out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 md:py-8 space-y-4">
+    <p id="errorBox" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-semibold"></p>
+
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+      <p id="tableMeta" class="text-sm text-gray-600 font-medium"></p>
+      <button id="refreshBtn" type="button"
+        class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition">
+        Refresh
+      </button>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-left text-gray-600 uppercase text-xs tracking-wide">
+            <th class="px-4 py-3">When</th>
+            <th class="px-4 py-3">User</th>
+            <th class="px-4 py-3">Action</th>
+            <th class="px-4 py-3 hidden md:table-cell">Detail</th>
+            <th class="px-4 py-3 hidden lg:table-cell">IP</th>
+          </tr>
+        </thead>
+        <tbody id="logsBody"></tbody>
+      </table>
+      <p id="emptyState" class="hidden text-center text-gray-500 py-10">No activity recorded yet.</p>
+    </div>
+
+    <div class="flex items-center justify-between">
+      <button id="prevBtn" type="button"
+        class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition disabled:opacity-40">
+        &larr; Previous
+      </button>
+      <span id="pageInfo" class="text-sm text-gray-600 font-medium"></span>
+      <button id="nextBtn" type="button"
+        class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition disabled:opacity-40">
+        Next &rarr;
+      </button>
+    </div>
+  </main>
+
+  <div id="toast" class="toast hidden px-4 py-3 rounded-xl shadow-lg text-white font-semibold text-sm"></div>
+
+  <script>
+    var AUTH_KEY = "arta-admin-auth";
+    var PAGE_SIZE = 50;
+    var auth = null;
+    var page = 0;
+    var total = 0;
+
+    var ACTION_LABELS = {
+      sign_in: "Sign in",
+      status_update: "Ticket status updated",
+      export_tickets: "Downloaded tickets report",
+      email_intake_form: "Emailed intake form",
+      account_create: "Account created",
+      account_delete: "Account deleted",
+      password_change: "Password changed",
+      account_recover: "Password recovered",
+      recovery_set: "Recovery question set",
+      export_logs: "Downloaded activity report",
+      viewed_ticket: "Opened ticket details",
+    };
+
+    function esc(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function toast(msg, ok) {
+      var el = document.getElementById("toast");
+      el.textContent = msg;
+      el.className = "toast px-4 py-3 rounded-xl shadow-lg text-white font-semibold text-sm " + (ok ? "bg-brand" : "bg-red-600");
+      el.classList.remove("hidden");
+      clearTimeout(el._t);
+      el._t = setTimeout(function () { el.classList.add("hidden"); }, 4000);
+    }
+
+    function showError(msg) {
+      var el = document.getElementById("errorBox");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+    }
+
+    function authHeaders() {
+      return { "Authorization": "Basic " + auth, "Content-Type": "application/json" };
+    }
+
+    async function api(path, method, body) {
+      var res = await fetch(path, {
+        method: method || "GET",
+        headers: authHeaders(),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (res.status === 401 || res.status === 503) throw new Error("unauthorized");
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    function logout() {
+      sessionStorage.removeItem(AUTH_KEY);
+      window.location.href = "/admin";
+    }
+
+    async function loadLogs() {
+      var params = new URLSearchParams();
+      params.set("limit", String(PAGE_SIZE));
+      params.set("offset", String(page * PAGE_SIZE));
+      var data = await api("/api/admin/activity-log?" + params.toString());
+      total = data.total;
+      var tbody = document.getElementById("logsBody");
+      var rows = data.logs || [];
+
+      if (rows.length === 0) {
+        tbody.innerHTML = "";
+        document.getElementById("emptyState").classList.remove("hidden");
+      } else {
+        document.getElementById("emptyState").classList.add("hidden");
+        tbody.innerHTML = rows.map(function (r) {
+          return '<tr class="border-t border-gray-100 align-top">' +
+            '<td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">' + esc((r.created_at || "").slice(0, 16)) + "</td>" +
+            '<td class="px-4 py-3 text-xs font-semibold">' + esc(r.username) + "</td>" +
+            '<td class="px-4 py-3 text-xs">' + esc(ACTION_LABELS[r.action] || r.action) + "</td>" +
+            '<td class="px-4 py-3 text-xs hidden md:table-cell text-gray-600">' + esc(r.detail || "—") + "</td>" +
+            '<td class="px-4 py-3 text-xs hidden lg:table-cell text-gray-400 font-mono">' + esc(r.ip || "—") + "</td>" +
+            "</tr>";
+        }).join("");
+      }
+
+      document.getElementById("tableMeta").textContent = "Showing " +
+        (total === 0 ? 0 : page * PAGE_SIZE + 1) + "–" + Math.min((page + 1) * PAGE_SIZE, total) + " of " + total + " events";
+      document.getElementById("pageInfo").textContent = "Page " + (page + 1) + " of " + Math.max(1, Math.ceil(total / PAGE_SIZE));
+      document.getElementById("prevBtn").disabled = page === 0;
+      document.getElementById("nextBtn").disabled = page >= Math.ceil(total / PAGE_SIZE) - 1;
+    }
+
+    function loadAll() {
+      loadLogs().catch(function (e) {
+        if (e.message === "unauthorized") logout();
+        else showError(e.message);
+      });
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", function () { loadAll(); });
+    document.getElementById("prevBtn").addEventListener("click", function () {
+      if (page > 0) { page--; loadLogs(); }
+    });
+    document.getElementById("nextBtn").addEventListener("click", function () {
+      page++;
+      loadLogs();
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", function () {
+      fetch("/api/admin/activity-log/export", { headers: authHeaders() }).then(function (res) {
+        if (res.status === 401 || res.status === 503) throw new Error("unauthorized");
+        if (!res.ok) throw new Error("Export failed");
+        return res.blob();
+      }).then(function (blob) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "activity-log-" + new Date().toISOString().slice(0, 10) + ".csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+        toast("Report downloaded.", true);
+      }).catch(function (e) {
+        if (e.message === "unauthorized") logout();
+        else toast(e.message, false);
+      });
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", logout);
+
+    (function init() {
+      auth = sessionStorage.getItem(AUTH_KEY);
+      if (!auth) { window.location.href = "/admin"; return; }
+      document.getElementById("loginUser").textContent = "Signed in as " + atob(auth).split(":")[0];
+      loadAll();
+    })();
+  </script>
+</body>
+</html>

@@ -33,6 +33,10 @@ Visit `/admin` on the deployed site (Basic Auth, no separate page server):
 
 - **Sign in:** username/password from the `ADMIN_USER` / `ADMIN_PASSWORD` secrets
 - **Features:** stats cards (total per status), filter by status + free-text search, pagination, full ticket details, and status changes — each change emails the submitter a bilingual status update
+- **Roles:** the env-configured `ADMIN_USER` bootstraps as the **superadmin** (auto-promoted on first login if no superadmin exists). Only the superadmin can create/delete accounts or set their own recovery question; superadmin accounts are undeletable and recoverable via a challenge question.
+- **Recovery:** `Forgot password?` on the login page fetches the superadmin's security question, then resets the password when the answer matches.
+- **Activity log:** `/logs` shows audit events (sign-ins, modal views, status changes, exports, account ops) with a **Download report (CSV)** button. Modal views are recorded client-side via `/api/admin/activity`.
+- **Auth requirements:** all `/api/admin/*` (except `recovery` endpoints) require Basic Auth.
 
 Set the secrets:
 
@@ -55,6 +59,17 @@ wrangler secret put ADMIN_PASSWORD
 | `/api/admin/tickets/:id` | PATCH | Updates a ticket's status and emails the submitter — requires Basic Auth |
 | `/api/admin/tickets/:id/email` | POST | Emails the filled intake form (PDF attachment) to an address — requires Basic Auth |
 | `/api/admin/stats` | GET | Counts per status — requires Basic Auth |
+| `/api/admin/login` | POST | Validates credentials and records a sign-in event — requires Basic Auth |
+| `/api/admin/me` | GET | Returns the signed-in user's role and recovery status — requires Basic Auth |
+| `/api/admin/activity` | POST | Records a client-side activity event (e.g. modal views) — requires Basic Auth |
+| `/api/admin/activity-log` | GET | Lists recent activity, paginated (`limit`, `offset`) — requires Basic Auth |
+| `/api/admin/activity-log/export` | GET | Downloads the full activity log as CSV — requires Basic Auth |
+| `/api/admin/accounts` | GET | Lists admin accounts (incl. recovery question) — requires Basic Auth |
+| `/api/admin/accounts` | POST | Creates an admin account — **superadmin only** |
+| `/api/admin/accounts/:id` | DELETE | Deletes an admin account — **superadmin only**, superadmin accounts protected |
+| `/api/admin/accounts/:id` | PATCH | Changes own password, or recovery question (superadmin self) |
+| `/api/admin/accounts/recovery` | GET | Returns the superadmin's security question (`?username=`) — public, rate-limited |
+| `/api/admin/accounts/recovery` | POST | Resets the superadmin password if the answer is correct — public, rate-limited |
 
 ## Deploying
 
