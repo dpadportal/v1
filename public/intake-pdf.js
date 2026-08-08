@@ -76,6 +76,15 @@ function buildIntakeDoc(t) {
       { table: { widths: ["38%", "62%"], body: [intakeField("District:", district)] }, layout: "lightHorizontalLines" },
       { table: { widths: ["38%", "62%"], body: [intakeField("School / Office:", school)] }, layout: "lightHorizontalLines" },
       { table: { widths: ["100%"], body: [{ text: description, style: "fieldValue" }] }, layout: "lightHorizontalLines" },
+      ...(t.evidence_file_name
+        ? [{
+            table: {
+              widths: ["38%", "62%"],
+              body: [intakeField("Evidence / Proof:", `${t.evidence_file_name}${t.evidence_file_url ? ` (${t.evidence_file_url})` : ""}`)],
+            },
+            layout: "lightHorizontalLines",
+          }]
+        : []),
 
       intakeSection("ACTION REQUIRED & SDO DISPOSITION"),
       { text: "Remarks / Action Taken by SDO DPAD:", style: "disposition" },

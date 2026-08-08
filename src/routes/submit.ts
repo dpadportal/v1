@@ -12,11 +12,20 @@ import {
 import { sha256 } from "../lib/crypto";
 import { generateArtaReference, isUniqueConstraintError } from "../lib/arta";
 import { sendConfirmationEmail } from "../lib/email";
+import { uploadEvidence } from "../lib/gdrive";
 import { createRateLimiter, clientIp } from "../lib/rate-limit";
 
 const OTP_MAX_ATTEMPTS = 5;
 const SUBMIT_RATE_LIMIT = 5;
 const SUBMIT_RATE_WINDOW = 60;
+const EVIDENCE_MAX_BYTES = 10 * 1024 * 1024;
+const EVIDENCE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+]);
 
 const NATURE_LABELS: Record<NatureOfRequest, string> = {
   complaint: "Complaint",
@@ -41,24 +50,54 @@ interface SubmitPayload {
 }
 
 submit.post("/", async (c) => {
-  let body: SubmitPayload;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ ok: false, error: "Invalid request payload." }, 400);
+  const contentType = c.req.header("Content-Type") ?? "";
+  const isMultipart = contentType.includes("multipart/form-data");
+
+  let form: FormData | null = null;
+  let body: SubmitPayload = {};
+  if (isMultipart) {
+    form = await c.req.formData();
+  } else {
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ ok: false, error: "Invalid request payload." }, 400);
+    }
   }
 
-  const fullName = String(body.full_name ?? "").trim();
-  const rawPhone = String(body.cellphone_number ?? "").trim();
-  const email = normalizeEmail(String(body.email_address ?? ""));
-  const otpCode = String(body.email_otp ?? "").trim();
-  const district = String(body.district ?? "").trim();
-  const schoolName = String(body.school_name ?? "").trim();
-  const rawNature = String(body.nature_of_request ?? "");
-  const description = String(body.description ?? "").trim();
-  const captchaSessionId = String(body.captcha_session_id ?? "").trim();
-  const captchaAnswer = String(body.captcha_answer ?? "").trim();
-  const consent = body.privacy_consent === true;
+  const field = (name: string): string => {
+    if (form) return String(form.get(name) ?? "").trim();
+    return String((body as Record<string, unknown>)[name] ?? "").trim();
+  };
+
+  const fullName = field("full_name");
+  const rawPhone = field("cellphone_number");
+  const email = normalizeEmail(field("email_address"));
+  const otpCode = field("email_otp");
+  const district = field("district");
+  const schoolName = field("school_name");
+  const rawNature = field("nature_of_request");
+  const description = field("description");
+  const captchaSessionId = field("captcha_session_id");
+  const captchaAnswer = field("captcha_answer");
+  const consent = form ? form.get("privacy_consent") === "true" : body.privacy_consent === true;
+
+  const evidenceFile: File | null = form ? (form.get("evidence") as File | null) : null;
+  let evidence: { name: string; mime: string; size: number; bytes: ArrayBuffer } | null = null;
+  if (evidenceFile && evidenceFile.size > 0) {
+    if (evidenceFile.size > EVIDENCE_MAX_BYTES) {
+      return c.json({ ok: false, error: "The attachment must be 10 MB or smaller." }, 400);
+    }
+    if (!EVIDENCE_TYPES.has(evidenceFile.type)) {
+      return c.json({ ok: false, error: "The attachment must be a photo (PNG/JPG/GIF/WebP) or PDF." }, 400);
+    }
+    evidence = {
+      name: String(evidenceFile.name ?? "attachment").trim() || "attachment",
+      mime: evidenceFile.type,
+      size: evidenceFile.size,
+      bytes: await evidenceFile.arrayBuffer(),
+    };
+  }
 
   if (!EMAIL_RE.test(email)) return c.json({ ok: false, error: "Enter a valid email address." }, 400);
   if (email.length > MAX_LENGTHS.email) return c.json({ ok: false, error: "Email address is too long." }, 400);
@@ -161,6 +200,24 @@ submit.post("/", async (c) => {
 
   if (!referenceNo) {
     return c.json({ ok: false, error: "Could not save your submission. Please try again." }, 500);
+  }
+
+  let evidenceUrl: string | null = null;
+  if (evidence) {
+    try {
+      const uploaded = await uploadEvidence(c.env, evidence.name, evidence.mime, evidence.bytes, referenceNo);
+      evidenceUrl = uploaded.webViewLink;
+      await c.env.DB.prepare(
+        `UPDATE tickets SET evidence_file_name = ?, evidence_file_url = ?, evidence_mime = ?, evidence_size = ?
+         WHERE arta_reference_no = ?`
+      )
+        .bind(uploaded.name, evidenceUrl, uploaded.mimeType, evidence.size, referenceNo)
+        .run();
+    } catch (err) {
+      console.error("Evidence upload failed:", err);
+      await c.env.DB.prepare(`DELETE FROM tickets WHERE arta_reference_no = ?`).bind(referenceNo).run();
+      return c.json({ ok: false, error: "The attachment could not be stored. Please try again." }, 502);
+    }
   }
 
   await sendConfirmationEmail(c.env, email, referenceNo, NATURE_LABELS[nature], description);

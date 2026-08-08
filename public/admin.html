@@ -260,6 +260,12 @@
           <div><p class="text-xs font-bold text-gray-500 uppercase">District</p><p id="mDistrict" class="text-sm"></p></div>
         </div>
 
+        <div class="hidden" id="mEvidenceWrap">
+          <p class="text-xs font-bold text-gray-500 uppercase mb-1">Evidence / Proof</p>
+          <a id="mEvidenceLink" href="#" target="_blank" rel="noopener" class="text-sm font-semibold text-brand underline underline-offset-2"></a>
+          <p id="mEvidenceMeta" class="text-xs text-gray-400 mt-0.5"></p>
+        </div>
+
         <div>
           <p class="text-xs font-bold text-gray-500 uppercase mb-1">Description</p>
           <pre id="mDescription" class="whitespace-pre-wrap font-sans text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl p-3"></pre>
@@ -330,6 +336,13 @@
 
     function esc(s) {
       return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function fmtSize(bytes) {
+      if (!bytes) return "";
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / 1048576).toFixed(2) + " MB";
     }
 
     function toast(msg, ok) {
@@ -630,6 +643,17 @@
         document.getElementById("mNature").textContent = NATURE_LABELS[data.ticket.nature_of_request] || data.ticket.nature_of_request;
         document.getElementById("mSchool").textContent = data.ticket.school_name;
         document.getElementById("mDistrict").textContent = data.ticket.district || "—";
+
+        var evWrap = document.getElementById("mEvidenceWrap");
+        if (data.ticket.evidence_file_url) {
+          document.getElementById("mEvidenceLink").textContent = data.ticket.evidence_file_name || "View attachment";
+          document.getElementById("mEvidenceLink").href = data.ticket.evidence_file_url;
+          var size = data.ticket.evidence_size ? " · " + fmtSize(data.ticket.evidence_size) : "";
+          document.getElementById("mEvidenceMeta").textContent = (data.ticket.evidence_mime || "") + size;
+          evWrap.classList.remove("hidden");
+        } else {
+          evWrap.classList.add("hidden");
+        }
         document.getElementById("mDescription").textContent = data.ticket.description;
         document.getElementById("emailToInput").value = "";
         document.getElementById("emailToInput").placeholder = "Email address to send the intake form…";

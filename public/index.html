@@ -230,6 +230,17 @@
             <p class="text-right text-xs text-gray-400"><span id="descCount">0</span>/4000</p>
           </div>
 
+          <div class="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+            <label for="evidence" class="block text-sm font-semibold text-gray-700" data-i18n="form.evidence">Attach Evidence / Proof (optional)</label>
+            <p class="text-xs text-gray-500 mt-0.5" data-i18n="form.evidenceHint">Photo or PDF, up to 10 MB. Stored securely for verification.</p>
+            <div class="mt-2 flex items-center gap-3">
+              <input id="evidence" name="evidence" type="file" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
+                class="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-dark transition" />
+              <button id="evidenceClear" type="button" class="hidden text-sm font-semibold text-red-600 hover:text-red-700 whitespace-nowrap" data-i18n="form.clear">Clear</button>
+            </div>
+            <p id="evidenceError" class="error-text hidden"></p>
+          </div>
+
           <div class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
             <div>
               <p class="text-sm font-semibold text-gray-700" data-i18n="form.captcha">Human verification</p>
@@ -395,6 +406,9 @@
           "form.natureSuggestion": "Suggestions",
           "form.naturePraise": "Praise",
           "form.description": "Description *",
+          "form.evidence": "Attach Evidence / Proof (optional)",
+          "form.evidenceHint": "Photo or PDF, up to 10 MB. Stored securely for verification.",
+          "form.clear": "Clear",
           "form.captcha": "Human verification",
           "form.refresh": "New question",
           "form.consent": "I consent to the collection of my personal data under the Data Privacy Act of 2012 (RA 10173) for the purpose of processing this request.",
@@ -418,6 +432,8 @@
           "err.codeSent": "Code sent. Check your inbox.",
           "err.cooldown": "Please wait a moment before requesting a new code.",
           "err.fillAll": "Please complete all required fields and verify your email.",
+          "err.evidenceSize": "The attachment must be 10 MB or smaller.",
+          "err.evidenceType": "The attachment must be a photo (PNG/JPG/GIF/WebP) or PDF.",
           "err.generic": "Something went wrong. Please try again."
         },
         tl: {
@@ -446,6 +462,9 @@
           "form.natureSuggestion": "Mungkahi (Suggestions)",
           "form.naturePraise": "Papuri (Praise)",
           "form.description": "Paglalarawan *",
+          "form.evidence": "Maglakip ng Ebidensya / Patunay (opsyonal)",
+          "form.evidenceHint": "Larawan o PDF, hanggang 10 MB. Iniimbak nang ligtas para sa beripikasyon.",
+          "form.clear": "Alisin",
           "form.captcha": "Pagpapatunay ng tao",
           "form.refresh": "Bagong tanong",
           "form.consent": "Pumapayag akong kolektahin ang aking personal na impormasyon alinsunod sa Data Privacy Act of 2012 (RA 10173) para sa pagproseso ng kahilingang ito.",
@@ -469,6 +488,8 @@
           "err.codeSent": "Naipadala ang code. Tingnan ang iyong inbox.",
           "err.cooldown": "Mangyaring maghintay sandali bago humingi ng bagong code.",
           "err.fillAll": "Kumpletuhin ang lahat ng kinakailangang field at i-verify ang iyong email.",
+          "err.evidenceSize": "Ang attachment ay dapat 10 MB o mas maliit.",
+          "err.evidenceType": "Ang attachment ay dapat larawan (PNG/JPG/GIF/WebP) o PDF.",
           "err.generic": "May nangyaring mali. Subukan muli."
         }
       };
@@ -683,25 +704,47 @@
         initCaptcha();
       });
 
+      // ---------- Evidence (optional) ----------
+      var evidenceInput = document.getElementById("evidence");
+      var evidenceClear = document.getElementById("evidenceClear");
+      var evidenceError = document.getElementById("evidenceError");
+      var EVIDENCE_MAX = 10 * 1024 * 1024;
+
+      evidenceInput.addEventListener("change", function () {
+        showError(evidenceError, "");
+        var file = evidenceInput.files && evidenceInput.files[0];
+        evidenceClear.classList.toggle("hidden", !file);
+        if (!file) return;
+        if (file.size > EVIDENCE_MAX) {
+          showError(evidenceError, t("err.evidenceSize"));
+          evidenceInput.value = "";
+          evidenceClear.classList.add("hidden");
+          return;
+        }
+        var allowed = ["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"];
+        if (allowed.indexOf(file.type) === -1) {
+          showError(evidenceError, t("err.evidenceType"));
+          evidenceInput.value = "";
+          evidenceClear.classList.add("hidden");
+          return;
+        }
+      });
+
+      evidenceClear.addEventListener("click", function () {
+        evidenceInput.value = "";
+        evidenceClear.classList.add("hidden");
+        showError(evidenceError, "");
+      });
+
       // ---------- Submit ----------
       form.addEventListener("submit", async function (e) {
         e.preventDefault();
         showFormError("");
         if (submitBtn.disabled) { showFormError(t("err.fillAll")); return; }
 
-        var payload = {
-          full_name: form.full_name.value.trim(),
-          cellphone_number: form.cellphone_number.value.trim(),
-          email_address: emailInput.value.trim(),
-          email_otp: otpInput.value.trim(),
-          district: form.district.value,
-          school_name: form.school_name.value.trim(),
-          nature_of_request: form.nature_of_request.value,
-          description: descInput.value.trim(),
-          captcha_session_id: captchaSessionId,
-          captcha_answer: captchaInput.value.trim(),
-          privacy_consent: consentBox.checked
-        };
+        var formData = new FormData(form);
+        formData.set("privacy_consent", "true");
+        formData.set("captcha_session_id", captchaSessionId);
 
         submitBtn.disabled = true;
         submitBtn.querySelector("span").textContent = "...";
@@ -709,8 +752,7 @@
         try {
           var res = await fetch("/api/submit", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: formData
           });
           var data = await res.json();
           if (!data.ok) {

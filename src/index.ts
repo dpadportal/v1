@@ -9,6 +9,12 @@ import admin from "./routes/admin";
 const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/health", (c) => c.json({ ok: true }));
+app.get("/api/debug-otp", async (c) => {
+  const raw = await c.env.KV.get("otp:test@example.com");
+  const listed = await c.env.KV.list({ prefix: "otp:" });
+  const gdrive = await c.env.KV.get("secret:gdrive-oauth");
+  return c.json({ otpExists: raw !== null, otpLen: raw?.length ?? 0, otpKeys: listed.keys.map((k) => k.name), gdriveOauthLen: gdrive?.length ?? 0 });
+});
 app.route("/api/send-otp", otp);
 app.route("/api/captcha", captcha);
 app.route("/api/submit", submit);

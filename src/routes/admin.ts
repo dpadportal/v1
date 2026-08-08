@@ -170,7 +170,8 @@ admin.get("/tickets/export", async (c) => {
 
   const rows = await c.env.DB.prepare(
     `SELECT arta_reference_no, full_name, cellphone_number, email_address,
-            district, school_name, nature_of_request, description, status, created_at, updated_at
+            district, school_name, nature_of_request, description, status, created_at, updated_at,
+            evidence_file_name, evidence_file_url
      FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT 10000`
   )
     .bind(...params)
@@ -194,6 +195,8 @@ admin.get("/tickets/export", async (c) => {
     "status",
     "created_at",
     "updated_at",
+    "evidence_file_name",
+    "evidence_file_url",
   ].join(",");
 
   const lines = rows.results.map((row) =>
@@ -209,6 +212,8 @@ admin.get("/tickets/export", async (c) => {
       csvEscape(row.status),
       csvEscape(row.created_at),
       csvEscape(row.updated_at),
+      csvEscape(row.evidence_file_name),
+      csvEscape(row.evidence_file_url),
     ].join(",")
   );
 

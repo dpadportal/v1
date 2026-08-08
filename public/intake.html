@@ -125,6 +125,7 @@
       <div class="field-row"><div class="field-label">Nature of Call or Request:</div><div class="field-value" id="fNature">—</div></div>
       <div class="field-row"><div class="field-label">District:</div><div class="field-value" id="fDistrict2">—</div></div>
       <div class="field-row"><div class="field-label">School / Office:</div><div class="field-value" id="fSchool">—</div></div>
+      <div class="field-row" id="fEvidenceRow" style="display:none"><div class="field-label">Evidence / Proof:</div><div class="field-value" id="fEvidence"></div></div>
       <div class="field-row"><div class="field-label">Summary of Feedback:</div><div class="field-value" id="fDescription">—</div></div>
 
       <p class="section-title">ACTION REQUIRED &amp; SDO DISPOSITION</p>
@@ -167,6 +168,12 @@
       document.getElementById("fNature").textContent = NATURE_LABELS[ticket.nature_of_request] || ticket.nature_of_request;
       document.getElementById("fDistrict2").textContent = ticket.district || "—";
       document.getElementById("fSchool").textContent = ticket.school_name;
+      if (ticket.evidence_file_url) {
+        var ev = document.getElementById("fEvidence");
+        ev.innerHTML = '<a href="' + esc(ticket.evidence_file_url) + '" target="_blank" rel="noopener" class="underline text-brand">'
+          + esc(ticket.evidence_file_name || "View attachment") + "</a>";
+        document.getElementById("fEvidenceRow").style.display = "";
+      }
       document.getElementById("fDescription").textContent = ticket.description;
     }
 

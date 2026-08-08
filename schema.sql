@@ -13,7 +13,11 @@ CREATE TABLE tickets (
   privacy_consent INTEGER NOT NULL DEFAULT 0 CHECK (privacy_consent IN (0, 1)),
   status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Under Review', 'Resolved')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  evidence_file_name TEXT,
+  evidence_file_url TEXT,
+  evidence_mime TEXT,
+  evidence_size INTEGER
 );
 
 CREATE INDEX idx_tickets_email ON tickets (email_address);
@@ -42,3 +46,22 @@ CREATE TABLE IF NOT EXISTS activity_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_activity_created_at ON activity_log (created_at);
+
+CREATE TABLE IF NOT EXISTS ticket_archive (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  arta_reference_no TEXT NOT NULL UNIQUE,
+  full_name TEXT,
+  cellphone_number TEXT,
+  email_address TEXT NOT NULL,
+  district TEXT,
+  school_name TEXT NOT NULL,
+  nature_of_request TEXT NOT NULL,
+  description TEXT NOT NULL,
+  privacy_consent INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'Resolved',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  archived_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_archive_created_at ON ticket_archive (created_at);
