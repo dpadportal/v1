@@ -1,4 +1,4 @@
-var CACHE = "dpac-portal-v18";
+var CACHE = "dpac-portal-v19";
 var SHELL = [
   "/",
   "/manifest.webmanifest",
