@@ -36,6 +36,11 @@ Visit `/admin` on the deployed site (Basic Auth, no separate page server):
 - **Roles:** the env-configured `ADMIN_USER` bootstraps as the **superadmin** (auto-promoted on first login if no superadmin exists). Only the superadmin can create/delete accounts or set their own recovery question; superadmin accounts are undeletable and recoverable via a challenge question.
 - **Recovery:** `Forgot password?` on the login page fetches the superadmin's security question, then resets the password when the answer matches.
 - **Activity log:** `/logs` shows audit events (sign-ins, modal views, status changes, exports, account ops) with a **Download report (CSV)** button. Modal views are recorded client-side via `/api/admin/activity`.
+- **Notifications (bell in the header):** shows new submissions from the last 24 hours (click a reference to open it), the monthly **archive reminder** (archiving should happen before the bi-annual cleanup — acknowledge with "I archived data", which snoozes it for 28 days), and backup status.
+- **Backups & restore (superadmin only, in the notifications panel):**
+  - *Manual:* "Back up now" saves a full snapshot (tickets + admin accounts + activity log) to KV; "Download backup" streams the whole database as a JSON file.
+  - *Automatic:* a Cron Trigger (`0 3 * * SUN`, Sundays 03:00 UTC) snapshots the database; the last 12 snapshots are kept automatically.
+  - *Restore:* pick a snapshot and confirm — a **safety snapshot of the current state is taken first**, then all three tables are replaced from the snapshot. Activity log entries are recorded for every backup/restore/archive action.
 - **Auth requirements:** all `/api/admin/*` (except `recovery` endpoints) require Basic Auth.
 
 Set the secrets:
@@ -70,6 +75,12 @@ wrangler secret put ADMIN_PASSWORD
 | `/api/admin/accounts/:id` | PATCH | Changes own password, or recovery question (superadmin self) |
 | `/api/admin/accounts/recovery` | GET | Returns the superadmin's security question (`?username=`) — public, rate-limited |
 | `/api/admin/accounts/recovery` | POST | Resets the superadmin password if the answer is correct — public, rate-limited |
+| `/api/admin/notifications` | GET | New submissions (24h), last backup, archive-reminder state — requires Basic Auth |
+| `/api/admin/backup` | GET | Lists snapshots + auto-backup info — **superadmin only** |
+| `/api/admin/backup` | POST | Creates a manual snapshot in KV — **superadmin only** |
+| `/api/admin/backup/download` | GET | Downloads the full database dump as JSON — **superadmin only** |
+| `/api/admin/backup/restore` | POST | Restores a snapshot (safety snapshot taken first) — **superadmin only** |
+| `/api/admin/archive` | POST | Acknowledges the monthly archive reminder (28-day snooze) — **superadmin only** |
 
 ## Deploying
 

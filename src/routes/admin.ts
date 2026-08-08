@@ -7,6 +7,7 @@ import { createRateLimiter } from "../lib/rate-limit";
 import { EMAIL_RE, MAX_LENGTHS } from "../lib/validators";
 import { hashPassword, verifyPassword } from "../lib/password";
 import { sendIntakeFormEmail, sendStatusUpdateEmail } from "../lib/email";
+import { createSnapshot, dumpDatabase, getSnapshot, listSnapshots, restoreSnapshot } from "../lib/backup";
 
 const admin = new Hono<{ Bindings: Env }>();
 
@@ -568,6 +569,151 @@ admin.get("/activity-log/export", async (c) => {
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
+});
+
+admin.get("/backup", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+  if (auth.user.role !== "superadmin") {
+    return c.json({ ok: false, error: "Only the superadmin can manage backups." }, 403);
+  }
+
+  const snapshots = await listSnapshots(c.env);
+  return c.json({
+    ok: true,
+    snapshots,
+    lastBackup: snapshots.length ? snapshots[snapshots.length - 1].createdAt : null,
+    maxSnapshots: 12,
+    autoCron: "0 3 * * SUN",
+  });
+});
+
+admin.post("/backup", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+  if (auth.user.role !== "superadmin") {
+    return c.json({ ok: false, error: "Only the superadmin can create backups." }, 403);
+  }
+
+  let body: { reason?: unknown } = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    body = {};
+  }
+
+  const snapshot = await createSnapshot(
+    c.env,
+    auth.user.username,
+    String(body.reason ?? "").trim().slice(0, 200) || "manual backup"
+  );
+  await logActivity(c.env, auth.user.username, "backup_manual", `Snapshot ${snapshot.id}`, clientIp(c));
+
+  return c.json({ ok: true, snapshot });
+});
+
+admin.get("/backup/download", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+  if (auth.user.role !== "superadmin") {
+    return c.json({ ok: false, error: "Only the superadmin can download backups." }, 403);
+  }
+
+  const data = await dumpDatabase(c.env);
+  await logActivity(c.env, auth.user.username, "backup_download", "Full database dump downloaded", clientIp(c));
+
+  const body = JSON.stringify({ createdAt: new Date().toISOString(), data }, null, 2);
+  const filename = `dpac-backup-${new Date().toISOString().slice(0, 10)}.json`;
+
+  return new Response(body, {
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+  });
+});
+
+admin.post("/backup/restore", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+  if (auth.user.role !== "superadmin") {
+    return c.json({ ok: false, error: "Only the superadmin can restore backups." }, 403);
+  }
+
+  let body: { id?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "Invalid request payload." }, 400);
+  }
+  const id = String(body.id ?? "").trim();
+  if (!id) return c.json({ ok: false, error: "Missing snapshot id." }, 400);
+
+  const snapshot = await getSnapshot(c.env, id);
+  if (!snapshot) return c.json({ ok: false, error: "Snapshot not found." }, 404);
+
+  const { restored, safety } = await restoreSnapshot(c.env, id);
+  await logActivity(
+    c.env,
+    auth.user.username,
+    "backup_restore",
+    `Restored ${snapshot.meta.id} (tickets=${restored.tickets.length}, accounts=${restored.admin_users.length})`,
+    clientIp(c)
+  );
+
+  return c.json({
+    ok: true,
+    message: "Restore complete.",
+    safetySnapshot: safety.id,
+    rows: {
+      tickets: restored.tickets.length,
+      admin_users: restored.admin_users.length,
+      activity_log: restored.activity_log.length,
+    },
+  });
+});
+
+admin.get("/notifications", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+
+  const recent = await c.env.DB.prepare(
+    `SELECT id, arta_reference_no, status, created_at FROM tickets
+     WHERE created_at >= datetime('now', '-1 day') ORDER BY id DESC LIMIT 20`
+  ).all();
+
+  const snapshots = await listSnapshots(c.env);
+  const lastArchive = await c.env.KV.get("meta:last_archive");
+
+  const daysSince = (iso: string): number =>
+    Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+
+  return c.json({
+    ok: true,
+    recentSubmissions: {
+      count: recent.results.length,
+      tickets: recent.results,
+    },
+    lastBackup: snapshots.length ? snapshots[snapshots.length - 1].createdAt : null,
+    backupCount: snapshots.length,
+    lastArchive,
+    archiveDue: !lastArchive || daysSince(lastArchive) >= 28,
+    autoCron: "0 3 * * SUN",
+  });
+});
+
+admin.post("/archive", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+  if (auth.user.role !== "superadmin") {
+    return c.json({ ok: false, error: "Only the superadmin can mark archiving as done." }, 403);
+  }
+
+  const now = new Date().toISOString();
+  await c.env.KV.put("meta:last_archive", now);
+  await logActivity(c.env, auth.user.username, "archive_marked", "Monthly archive acknowledged", clientIp(c));
+
+  return c.json({ ok: true, lastArchive: now });
 });
 
 admin.get("/accounts/recovery", async (c) => {

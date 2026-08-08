@@ -22,5 +22,8 @@
   ],
   "vars": {
     "EMAIL_FROM": "DPAC Portal <dpacportal@gmail.com>"
+  },
+  "triggers": {
+    "crons": ["0 3 * * SUN"]
   }
 }

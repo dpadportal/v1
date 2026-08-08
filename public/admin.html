@@ -52,6 +52,28 @@
         <a href="/accounts" class="hidden rounded-lg bg-white border border-gray-300 font-semibold px-2 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition" id="accountsLink">
           Accounts
         </a>
+        <div class="relative" id="bellWrap">
+          <button id="bellBtn" type="button" aria-label="Notifications"
+            class="hidden relative rounded-lg bg-white border border-gray-300 font-semibold px-2 md:px-3 py-2 hover:bg-gray-50 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-brand-dark">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+            </svg>
+            <span id="bellBadge"
+              class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold items-center justify-center"></span>
+          </button>
+
+          <div id="bellPanel"
+            class="hidden absolute right-0 mt-2 w-[min(92vw,380px)] max-h-[80vh] overflow-y-auto bg-white rounded-2xl shadow-2xl border border-gray-200 z-50">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+              <h3 class="font-bold text-brand-dark text-sm">Notifications</h3>
+              <button id="bellClose" type="button" aria-label="Close"
+                class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div id="bellBody" class="divide-y divide-gray-100 text-sm"></div>
+          </div>
+        </div>
         <button id="logoutBtn" type="button" class="hidden px-3 md:px-4 py-2 rounded-lg bg-gray-200 font-semibold text-xs md:text-sm hover:bg-gray-300 transition">
           Log out
         </button>
@@ -262,6 +284,35 @@
     </div>
   </div>
 
+  <div id="restoreModal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/60" id="restoreBackdrop"></div>
+    <div class="relative z-10 min-h-full flex items-center justify-center p-4">
+      <div class="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 bg-brand text-white">
+          <h2 class="text-lg font-bold">Restore from backup</h2>
+          <button id="restoreClose" type="button" aria-label="Close"
+            class="h-9 w-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition text-xl font-semibold">&times;</button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <p class="text-sm text-gray-500">
+            Pick a snapshot to restore. All current data will be <b>replaced</b> with the snapshot —
+            a safety snapshot of the current state is taken automatically first.
+          </p>
+          <div id="restoreList" class="max-h-64 overflow-y-auto space-y-2"></div>
+          <label class="flex items-start gap-2 text-xs text-gray-600">
+            <input id="restoreConfirmBox" type="checkbox" class="mt-0.5" />
+            I understand this overwrites current data.
+          </label>
+          <p id="restoreError" class="hidden text-sm font-semibold text-red-600"></p>
+          <button id="restoreSubmitBtn" type="button" disabled
+            class="w-full rounded-lg bg-red-600 text-white font-bold py-2 text-sm hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+            Restore selected snapshot
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     var AUTH_KEY = "arta-admin-auth";
     var PAGE_SIZE = 25;
@@ -326,6 +377,8 @@
         (user.role === "superadmin"
           ? ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5 align-middle">superadmin</span>'
           : "");
+      document.getElementById("bellBtn").classList.remove("hidden");
+      loadNotifications();
       loadAll();
     }
 
@@ -337,6 +390,8 @@
       document.getElementById("accountsLink").classList.add("hidden");
       document.getElementById("logsLink").classList.add("hidden");
       document.getElementById("loginUser").classList.add("hidden");
+      document.getElementById("bellBtn").classList.add("hidden");
+      document.getElementById("bellPanel").classList.add("hidden");
       document.getElementById("loginSection").classList.remove("hidden");
       if (msg) {
         var err = document.getElementById("loginError");
@@ -809,6 +864,204 @@
           btn.textContent = "Reset password";
           recoveryErr("Could not reach the server. Try again.");
         });
+    });
+
+    // ---------- Notifications, backup & restore ----------
+    var selectedSnapshotId = null;
+    var notifTimer = null;
+
+    function pollNotifications() {
+      clearTimeout(notifTimer);
+      notifTimer = setTimeout(loadNotifications, 60000);
+    }
+
+    async function loadNotifications() {
+      if (!auth) return;
+      try {
+        var d = await api("/api/admin/notifications");
+        renderNotifications(d);
+        pollNotifications();
+      } catch (e) {
+        setTimeout(pollNotifications, 30000);
+      }
+    }
+
+    function renderNotifications(d) {
+      var count = d.recentSubmissions.count + (d.archiveDue ? 1 : 0);
+      var badge = document.getElementById("bellBadge");
+      badge.textContent = count > 9 ? "9+" : String(count);
+      badge.classList.toggle("hidden", count === 0);
+      badge.classList.toggle("flex", count > 0);
+
+      var html = "";
+      html += '<div class="px-4 py-3">';
+      html += '<p class="text-xs font-bold text-gray-500 uppercase mb-2">Recent submissions (24h)</p>';
+      if (d.recentSubmissions.count === 0) {
+        html += '<p class="text-xs text-gray-500">No new submissions in the last 24 hours.</p>';
+      } else {
+        d.recentSubmissions.tickets.forEach(function (t) {
+          html += '<button type="button" data-notif-id="' + t.id + '" class="notif-ticket block w-full text-left rounded-lg px-2 py-1.5 hover:bg-gray-50 transition">'
+            + '<span class="font-bold text-brand text-xs">' + esc(t.arta_reference_no) + '</span> '
+            + '<span class="text-gray-400 text-[11px]">' + esc((t.created_at || "").slice(0, 16)) + '</span>'
+            + '<span class="ml-1 text-[11px] ' + (STATUS_COLORS[t.status] || "bg-gray-100 text-gray-700") + ' rounded-full px-2 py-0.5 font-semibold">' + esc(t.status) + '</span>'
+            + "</button>";
+        });
+      }
+      html += "</div>";
+
+      if (d.archiveDue) {
+        html += '<div class="px-4 py-3 bg-amber-50">'
+          + '<p class="text-xs font-bold text-amber-800 uppercase mb-1">Archive reminder</p>'
+          + '<p class="text-xs text-amber-700 mb-2">Monthly archive reminder: please archive the data before the bi-annual cleanup.</p>'
+          + (d.lastArchive ? '<p class="text-[11px] text-amber-600 mb-2">Last archived: ' + esc(String(d.lastArchive).slice(0, 10)) + "</p>" : "")
+          + '<button id="archiveDoneBtn" type="button" class="rounded-lg bg-amber-600 text-white font-bold px-3 py-1.5 text-xs hover:bg-amber-700 transition">I archived data</button>'
+          + "</div>";
+      }
+
+      if (currentUser && currentUser.role === "superadmin") {
+        html += '<div class="px-4 py-3">'
+          + '<p class="text-xs font-bold text-gray-500 uppercase mb-2">Data backup &amp; restore</p>'
+          + '<p class="text-xs text-gray-600">Last auto backup: <b>' + (d.lastBackup ? esc(String(d.lastBackup).slice(0, 16)) : "&mdash;") + "</b> (" + d.backupCount + " snapshots)</p>"
+          + '<p class="text-xs text-gray-500">Auto: every Sunday 03:00 UTC &middot; keeps the last 12 snapshots</p>'
+          + '<div class="mt-2 flex flex-wrap gap-2">'
+          + '<button id="backupNowBtn" type="button" class="rounded-lg bg-brand text-white font-bold px-3 py-1.5 text-xs hover:bg-brand-dark transition">Back up now</button>'
+          + '<button id="backupDownloadBtn" type="button" class="rounded-lg bg-white border border-gray-300 font-semibold px-3 py-1.5 text-xs hover:bg-gray-50 transition">Download backup</button>'
+          + '<button id="restoreBtn" type="button" class="rounded-lg bg-red-50 border border-red-200 text-red-700 font-semibold px-3 py-1.5 text-xs hover:bg-red-100 transition">Restore&hellip;</button>'
+          + "</div></div>";
+      }
+
+      document.getElementById("bellBody").innerHTML = html;
+
+      var panel = document.getElementById("bellPanel");
+      panel.querySelectorAll(".notif-ticket").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          panel.classList.add("hidden");
+          if (typeof window.openTicket === "function") window.openTicket(Number(btn.dataset.notifId));
+        });
+      });
+      var archiveBtn = document.getElementById("archiveDoneBtn");
+      if (archiveBtn) {
+        archiveBtn.addEventListener("click", function () {
+          api("/api/admin/archive", "POST").then(function () {
+            toast("Archiving acknowledged. Reminder will return in 28 days.", true);
+            loadNotifications();
+          }).catch(function (e) { toast(e.message || "Failed.", false); });
+        });
+      }
+      var backupBtn = document.getElementById("backupNowBtn");
+      if (backupBtn) {
+        backupBtn.addEventListener("click", function () {
+          var btn = backupBtn;
+          btn.disabled = true;
+          btn.textContent = "Backing up…";
+          api("/api/admin/backup", "POST", { reason: "manual backup" }).then(function (d) {
+            toast("Backup created: " + d.snapshot.id.slice(11, 19), true);
+            loadNotifications();
+          }).catch(function (e) {
+            toast(e.message || "Backup failed.", false);
+          }).finally(function () {
+            btn.disabled = false;
+            btn.textContent = "Back up now";
+          });
+        });
+      }
+      var dlBtn = document.getElementById("backupDownloadBtn");
+      if (dlBtn) {
+        dlBtn.addEventListener("click", function () {
+          fetch("/api/admin/backup/download", { headers: authHeaders() })
+            .then(function (res) {
+              if (!res.ok) throw new Error("Download failed.");
+              return res.blob();
+            })
+            .then(function (blob) {
+              var a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "dpac-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+            })
+            .catch(function (e) { toast(e.message || "Download failed.", false); });
+        });
+      }
+      var restoreBtnEl = document.getElementById("restoreBtn");
+      if (restoreBtnEl) restoreBtnEl.addEventListener("click", openRestoreModal);
+    }
+
+    function openRestoreModal() {
+      document.getElementById("restoreError").classList.add("hidden");
+      document.getElementById("restoreConfirmBox").checked = false;
+      document.getElementById("restoreSubmitBtn").disabled = true;
+      selectedSnapshotId = null;
+      var list = document.getElementById("restoreList");
+      list.innerHTML = '<p class="text-sm text-gray-500">Loading snapshots…</p>';
+      document.getElementById("restoreModal").classList.remove("hidden");
+      api("/api/admin/backup").then(function (d) {
+        if (!d.snapshots.length) {
+          list.innerHTML = '<p class="text-sm text-gray-500">No snapshots yet. Create a backup first.</p>';
+          return;
+        }
+        var rows = d.snapshots.slice().reverse().map(function (s) {
+          return '<label class="flex items-start gap-2 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer hover:bg-gray-50 transition">'
+            + '<input type="radio" name="snapshot" value="' + esc(s.id) + '" class="mt-1" />'
+            + '<span class="text-xs">'
+            + '<span class="font-bold text-gray-800">' + esc(s.createdAt) + "</span>"
+            + '<span class="text-gray-500"> &mdash; by ' + esc(s.by) + " (" + esc(s.reason) + ")</span><br/>"
+            + '<span class="text-gray-500">tickets: ' + s.rows.tickets + " &middot; accounts: " + s.rows.admin_users + " &middot; log: " + s.rows.activity_log + "</span>"
+            + "</span></label>";
+        });
+        list.innerHTML = rows.join("");
+        list.querySelectorAll('input[name="snapshot"]').forEach(function (radio) {
+          radio.addEventListener("change", function () {
+            selectedSnapshotId = radio.value;
+            document.getElementById("restoreSubmitBtn").disabled = !document.getElementById("restoreConfirmBox").checked;
+          });
+        });
+      }).catch(function (e) {
+        list.innerHTML = '<p class="text-sm text-red-600">' + esc(e.message || "Could not load snapshots.") + "</p>";
+      });
+    }
+
+    document.getElementById("restoreConfirmBox").addEventListener("change", function () {
+      document.getElementById("restoreSubmitBtn").disabled = !this.checked || !selectedSnapshotId;
+    });
+
+    document.getElementById("restoreSubmitBtn").addEventListener("click", function () {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = "Restoring…";
+      api("/api/admin/backup/restore", "POST", { id: selectedSnapshotId }).then(function (d) {
+        toast("Restore complete. Safety snapshot: " + d.safetySnapshot.slice(0, 16) + ".", true);
+        document.getElementById("restoreModal").classList.add("hidden");
+        setTimeout(function () { location.reload(); }, 1500);
+      }).catch(function (e) {
+        var err = document.getElementById("restoreError");
+        err.textContent = e.message || "Restore failed.";
+        err.classList.remove("hidden");
+        btn.disabled = false;
+        btn.textContent = "Restore selected snapshot";
+      });
+    });
+
+    document.getElementById("bellBtn").addEventListener("click", function (e) {
+      e.stopPropagation();
+      var panel = document.getElementById("bellPanel");
+      panel.classList.toggle("hidden");
+      if (!panel.classList.contains("hidden")) loadNotifications();
+    });
+    document.getElementById("bellClose").addEventListener("click", function () {
+      document.getElementById("bellPanel").classList.add("hidden");
+    });
+    document.addEventListener("click", function (e) {
+      var wrap = document.getElementById("bellWrap");
+      if (!wrap.contains(e.target)) document.getElementById("bellPanel").classList.add("hidden");
+    });
+    document.getElementById("restoreClose").addEventListener("click", function () {
+      document.getElementById("restoreModal").classList.add("hidden");
+    });
+    document.getElementById("restoreBackdrop").addEventListener("click", function () {
+      document.getElementById("restoreModal").classList.add("hidden");
     });
 
     (function init() {

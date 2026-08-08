@@ -22,4 +22,16 @@ app.get("/intake", (c) => c.env.ASSETS.fetch(new Request(new URL("/intake.html",
 
 app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
-export default app;
+export default {
+  fetch: app.fetch,
+  scheduled: async (_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> => {
+    const { createSnapshot } = await import("./lib/backup");
+    try {
+      const meta = await createSnapshot(env, "auto", "scheduled weekly backup");
+      const { logActivity } = await import("./lib/auth");
+      await logActivity(env, "system", "backup_auto", `Snapshot ${meta.id} (tickets=${meta.rows.tickets})`, "cron");
+    } catch (err) {
+      console.error("Scheduled backup failed:", err);
+    }
+  },
+};
