@@ -148,12 +148,7 @@
   </main>
 
   <!-- ============ FLOATING CONTROLS ============ -->
-  <a href="/admin" title="Admin" class="fixed bottom-20 left-4 z-40 block transition hover:opacity-80 hover:scale-105 active:scale-95">
-    <img src="/admin.png" alt="Admin" class="h-10 w-10 md:h-12 md:w-12 rounded-full shadow" style="filter:brightness(0.75) saturate(1.15)" />
-  </a>
-  <div id="langToggle" class="lang-toggle fixed bottom-20 right-4 z-40 cursor-pointer select-none shadow-lg" role="button" aria-label="Language">
-    <span data-lang="en">EN</span><span data-lang="tl">PH</span>
-  </div>
+
 
   <!-- ============ FORM MODAL ============ -->
   <div id="formModal" class="fixed inset-0 z-50 hidden">
@@ -932,6 +927,14 @@
       <p class="mt-2">
         <a href="/dpac-portal.apk" download class="text-xs md:text-sm font-semibold underline underline-offset-2 hover:text-white transition">Download Android App (APK)</a>
       </p>
+      <div class="mt-3 flex items-center justify-center gap-3">
+        <a href="/admin" title="Admin" class="block transition hover:opacity-80 hover:scale-105 active:scale-95">
+          <img src="/admin.png" alt="Admin" class="h-8 w-8 md:h-9 md:w-9 rounded-full shadow" style="filter:brightness(0.75) saturate(1.15)" />
+        </a>
+        <div id="langToggle" class="lang-toggle cursor-pointer select-none" role="button" aria-label="Language">
+          <span data-lang="en">EN</span><span data-lang="tl">PH</span>
+        </div>
+      </div>
     </div>
   </footer>
 
