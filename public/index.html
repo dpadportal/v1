@@ -100,28 +100,25 @@
         0 0 16px rgba(255, 215, 0, 0.85),
         0 0 32px rgba(255, 215, 0, 0.6);
     }
+    .header-dpad {
+      color: #ffffff;
+      -webkit-text-stroke: 1px #000000;
+      -webkit-text-fill-color: #ffffff;
+      paint-order: stroke fill;
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased">
 
   <!-- ============ HEADER ============ -->
   <header class="fixed top-0 inset-x-0 z-40 glass border-b border-white/10">
-    <div class="max-w-6xl mx-auto px-4 py-3 md:py-6 flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3 md:gap-6 min-w-0">
-        <img src="/sdo.png" alt="Logo" class="h-14 w-14 md:h-20 md:w-20 rounded-lg shadow shrink-0" />
-        <div class="min-w-0">
-          <p class="font-bold text-lg md:text-[31px] text-brand-dark leading-tight truncate" data-i18n="org.title">SDO Nueva Ecija</p>
-          <p class="text-base md:text-xl text-brand-dark leading-tight" data-i18n="org.sub">DPAC Portal</p>
-        </div>
+    <div class="max-w-6xl mx-auto px-4 py-3 md:py-4 flex flex-col items-center text-center">
+      <div class="flex items-center gap-3 md:gap-4 min-w-0">
+        <img src="/sdo.png" alt="Logo" class="h-12 w-12 md:h-16 md:w-16 rounded-lg shadow shrink-0" />
+        <p class="font-bold text-lg md:text-[30px] text-brand-dark leading-tight truncate" data-i18n="org.title">SDO Nueva Ecija</p>
       </div>
-      <div class="flex items-center gap-2 md:gap-4 shrink-0">
-        <div id="langToggle" class="lang-toggle cursor-pointer select-none" role="button" aria-label="Language">
-          <span data-lang="en">EN</span><span data-lang="tl">PH</span>
-        </div>
-        <a href="/admin" title="Admin" class="block transition hover:opacity-80 hover:scale-105 active:scale-95">
-          <img src="/admin.png" alt="Admin" class="h-9 w-9 md:h-11 md:w-11 rounded-full shadow" />
-        </a>
-      </div>
+      <p class="mt-1 md:mt-2 header-dpad text-sm md:text-2xl font-bold uppercase leading-tight" data-i18n="org.sub">Division Public Assistance Desk</p>
+      <p class="mt-1 text-[10px] md:text-xs text-white/90 leading-tight" data-i18n="hero.note">Complies with RA 11032 also known as Ease of Doing Business and Efficient Government Service Delivery Act of 2018</p>
     </div>
   </header>
 
@@ -147,10 +144,16 @@
           <span data-i18n="hero.track">Track a Ticket</span>
         </button>
       </div>
-
-      <p class="mt-8 text-xs hero-glow" data-i18n="hero.note">Complies with RA 11032 also known as Ease of Doing Business and Efficient Government Service Delivery Act of 2018</p>
     </div>
   </main>
+
+  <!-- ============ FLOATING CONTROLS ============ -->
+  <a href="/admin" title="Admin" class="fixed bottom-4 right-4 z-40 block transition hover:opacity-80 hover:scale-105 active:scale-95">
+    <img src="/admin.png" alt="Admin" class="h-10 w-10 md:h-12 md:w-12 rounded-full shadow" style="filter:brightness(0.75) saturate(1.15)" />
+  </a>
+  <div id="langToggle" class="lang-toggle fixed bottom-20 right-4 z-40 cursor-pointer select-none shadow-lg" role="button" aria-label="Language">
+    <span data-lang="en">EN</span><span data-lang="tl">PH</span>
+  </div>
 
   <!-- ============ FORM MODAL ============ -->
   <div id="formModal" class="fixed inset-0 z-50 hidden">
@@ -365,7 +368,7 @@
   </div>
 
   <!-- ============ GET THE APP PILL ============ -->
-  <div id="appPill" class="hidden fixed bottom-4 right-4 z-40">
+  <div id="appPill" class="hidden fixed bottom-4 left-4 z-40">
     <div class="flex items-center gap-3 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 pr-4 max-w-[92vw]">
       <img src="/icons/icon-192.png" alt="DPAC app icon" class="h-11 w-11 rounded-xl shadow shrink-0" />
       <div class="min-w-0">
