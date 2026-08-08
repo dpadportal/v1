@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "ne.dpacportal.app",
+        "sha256_cert_fingerprints": ["01:56:98:97:8B:34:3A:C9:53:F2:16:E2:E3:65:F9:9E:22:32:B9:6A:C6:FE:5D:A6:96:19:44:5D:F2:C4:3C:5D"]
+      }
+    }]

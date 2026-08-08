@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Submit a Concern, Complaint, or Request | ARTA Desk</title>
   <meta name="description" content="File a concern, complaint, or request and track your ARTA reference number." />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#2e6b27" />
+  <link rel="icon" type="image/png" href="/icons/favicon.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DPAC" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -312,6 +320,44 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ INSTALL HELP MODAL ============ -->
+  <div id="installHelpModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="installHelpBackdrop"></div>
+    <div class="relative z-10 min-h-full flex items-center justify-center p-4">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 bg-brand text-white">
+          <h2 class="text-lg font-bold">Install the DPAC app</h2>
+          <button type="button" id="installHelpClose" aria-label="Close"
+            class="h-9 w-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition text-xl font-semibold">&times;</button>
+        </div>
+        <div class="px-6 py-5">
+          <p id="installHelpBody" class="text-sm text-gray-600 leading-relaxed"></p>
+          <a id="installApkLink" href="/dpac-portal.apk" class="hidden mt-3 block text-sm font-bold text-brand underline underline-offset-2">
+            Download the Android APK
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GET THE APP PILL ============ -->
+  <div id="appPill" class="hidden fixed bottom-4 right-4 z-40">
+    <div class="flex items-center gap-3 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 pr-4 max-w-[92vw]">
+      <img src="/icons/icon-192.png" alt="DPAC app icon" class="h-11 w-11 rounded-xl shadow shrink-0" />
+      <div class="min-w-0">
+        <p class="text-sm font-bold text-gray-800 leading-tight">Get the DPAC app</p>
+        <p class="text-xs text-gray-500 leading-tight" id="appPillSub">Install on this device</p>
+        <a id="apkLink" href="/dpac-portal.apk" class="hidden text-xs font-semibold text-brand underline underline-offset-2">or download APK</a>
+      </div>
+      <button id="appInstallBtn" type="button"
+        class="rounded-lg bg-brand text-white font-bold px-4 py-2 text-xs hover:bg-brand-dark transition whitespace-nowrap">
+        Install
+      </button>
+      <button id="appPillClose" type="button" aria-label="Dismiss"
+        class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
     </div>
   </div>
 
@@ -737,6 +783,84 @@
         } finally {
           trackBtn.disabled = false;
         }
+      }
+
+      // ---------- App install ----------
+      var deferredInstallPrompt = null;
+
+      function isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      }
+      function isAndroid() { return /Android/i.test(navigator.userAgent); }
+      function isMobile() { return isIOS() || isAndroid() || /Mobile|Tablet/i.test(navigator.userAgent); }
+
+      window.addEventListener("beforeinstallprompt", function (e) {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        showAppPill();
+      });
+
+      window.addEventListener("appinstalled", function () {
+        deferredInstallPrompt = null;
+        document.getElementById("appPill").classList.add("hidden");
+      });
+
+      function showAppPill() {
+        if (localStorage.getItem("arta-pill-dismissed")) return;
+        var sub = document.getElementById("appPillSub");
+        sub.textContent = isIOS() ? "Add to Home Screen" : "Install on this device";
+        var apk = document.getElementById("apkLink");
+        if (apk) apk.classList.toggle("hidden", !isAndroid());
+        document.getElementById("appPill").classList.remove("hidden");
+      }
+
+      document.getElementById("appPillClose").addEventListener("click", function () {
+        localStorage.setItem("arta-pill-dismissed", "1");
+        document.getElementById("appPill").classList.add("hidden");
+      });
+
+      document.getElementById("appInstallBtn").addEventListener("click", function () {
+        if (isIOS()) { openInstallHelp(); return; }
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          deferredInstallPrompt.userChoice.then(function (choice) {
+            if (choice.outcome !== "accepted") showAppPill();
+            deferredInstallPrompt = null;
+          });
+        } else {
+          openInstallHelp();
+        }
+      });
+
+      function openInstallHelp() {
+        var body = document.getElementById("installHelpBody");
+        if (isIOS()) {
+          body.textContent = 'In Safari, tap the Share button at the bottom, then choose "Add to Home Screen" and tap "Add". A DPAC icon will appear on your home screen.';
+        } else if (isAndroid()) {
+          body.textContent = 'In Chrome or Edge, open the browser menu and tap "Download app" / "Add to Home screen", or download the APK below and install it (enable "Install unknown apps" if prompted).';
+        } else {
+          body.textContent = "Open this page on your phone's Chrome or Edge browser and install the app from the menu. On iPhone, use Safari > Share > Add to Home Screen.";
+        }
+        document.getElementById("installApkLink").classList.toggle("hidden", !isAndroid());
+        document.body.classList.add("modal-open");
+        document.getElementById("installHelpModal").classList.remove("hidden");
+      }
+
+      function closeInstallHelp() {
+        document.getElementById("installHelpModal").classList.add("hidden");
+        document.body.classList.remove("modal-open");
+      }
+
+      document.getElementById("installHelpClose").addEventListener("click", closeInstallHelp);
+      document.getElementById("installHelpBackdrop").addEventListener("click", closeInstallHelp);
+
+      setTimeout(function () {
+        if (isMobile()) showAppPill();
+      }, 2500);
+
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch(function () {});
       }
 
       applyI18n();    })();
