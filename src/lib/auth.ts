@@ -83,10 +83,6 @@ export async function adminGuard(c: Context<{ Bindings: Env }>): Promise<AuthRes
   const password = decoded.slice(colon + 1);
   if (!username || !password) return { error: unauthorized(c) };
 
-  const limiter = createRateLimiter(c.env.KV, "rl:admin-auth", 10, 300);
-  const { allowed } = await limiter.check(clientIp(c));
-  if (!allowed) return { error: rateLimited(c) };
-
   const row = await c.env.DB.prepare(
     `SELECT id, username, role, password_salt, password_hash FROM admin_users WHERE username = ?`
   )
@@ -101,7 +97,12 @@ export async function adminGuard(c: Context<{ Bindings: Env }>): Promise<AuthRes
 
   if (row) {
     const ok = await verifyPassword(password, row.password_salt, row.password_hash);
-    if (!ok) return { error: unauthorized(c) };
+    if (!ok) {
+      const limiter = createRateLimiter(c.env.KV, "rl:admin-auth", 10, 300);
+      const { allowed } = await limiter.check(clientIp(c));
+      if (!allowed) return { error: rateLimited(c) };
+      return { error: unauthorized(c) };
+    }
     await ensureSuperadmin(c.env, username);
     return { user: { id: row.id, username: row.username, role: row.role } };
   }
@@ -123,6 +124,10 @@ export async function adminGuard(c: Context<{ Bindings: Env }>): Promise<AuthRes
       ? { user: { id: seeded.id, username: seeded.username, role: seeded.role } }
       : { error: unauthorized(c) };
   }
+
+  const limiter = createRateLimiter(c.env.KV, "rl:admin-auth", 10, 300);
+  const { allowed } = await limiter.check(clientIp(c));
+  if (!allowed) return { error: rateLimited(c) };
 
   return { error: unauthorized(c) };
 }
