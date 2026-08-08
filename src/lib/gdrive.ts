@@ -46,6 +46,7 @@ async function exchangeToken(env: Env): Promise<string> {
 }
 
 export interface EvidenceUpload {
+  id: string;
   fileId: string;
   name: string;
   mimeType: string;
@@ -120,7 +121,7 @@ export async function uploadEvidence(
   }
 
   const permRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${data.fileId}/permissions?fields=id`,
+    `https://www.googleapis.com/drive/v3/files/${data.id}/permissions?fields=id`,
     {
       method: "POST",
       headers: {
@@ -132,5 +133,5 @@ export async function uploadEvidence(
   );
   if (!permRes.ok) console.error(`Evidence permission failed (${permRes.status}): ${(await permRes.text()).slice(0, 300)}`);
 
-  return { fileId: data.fileId, name: driveName, mimeType: data.mimeType, webViewLink: data.webViewLink };
+  return { id: data.id, fileId: data.id, name: driveName, mimeType: data.mimeType, webViewLink: data.webViewLink };
 }

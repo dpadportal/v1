@@ -18,10 +18,20 @@ Passwords are PBKDF2-hashed in D1 — never recoverable, only resettable.
 
 - Worker: `arta-submission-form` — account `fe3278049f522689f0df3ae803747865`
 - D1 `arta-db`: `8dc992be-05bc-462e-8a4c-0b555374269f` (tables: `tickets`, `admin_users`, `activity_log`)
-- KV: `f34a5c6722254b9c93db3e4584daa3d4` (OTP/CAPTCHA 5-min, `backup:*` snapshots, `backup:index`, `meta:last_archive`)
+- KV: `f34a5c6722254b9c93db3e4584daa3d4` (OTP/CAPTCHA 5-min, `backup:*` snapshots, `backup:index`, `meta:last_archive`, `secret:gdrive-oauth`, `gdrive:token`, `gdrive:folder-id`)
 - Env secrets: `ADMIN_USER=admin`, `ADMIN_PASSWORD=dpac-admin-2026`, `SMTP_USER=dpacportal@gmail.com`, `SMTP_PASSWORD=ylln scin jnql byja` (Gmail App Password)
 - `EMAIL_FROM` var: "DPAC Portal <dpacportal@gmail.com>" (in `wrangler.jsonc`)
 - Cron Trigger: `0 3 * * SUN` (weekly auto-backup, keeps last 12 KV snapshots)
+- **wranger 4.119 quirk:** `wrangler kv` commands default to **LOCAL** mode; always pass `--remote`. `--ttl` is broken (writes instantly-expired keys) — omit it.
+
+## Google Drive evidence upload (v17+)
+
+- Optional proof/evidence file (≤10 MB: PNG/JPG/GIF/WebP/PDF) on the filing form → uploaded to Google Drive folder **"DPAC Evidence"** as `dpacportal@gmail.com`, public link saved on the ticket (evidence_file_* columns).
+- Auth: **OAuth2 refresh token**, NOT a service account (Google gives SAs 0 quota on consumer accounts — `storageQuota.limit = 0`, SA uploads 403 forever).
+- Config lives in KV `secret:gdrive-oauth` = `{client_id, client_secret, refresh_token}` (OAuth client "Desktop app" `281209627404-rk6frvn5ukqcoargi3q34ddg70m9r9d8...` in GCP project `dpac-portal`).
+- Backup of the config: `%TEMP%\opencode\gdrive-oauth-config.json` (temp may be wiped — re-run consent flow if lost). Refresh token currently expires after **7 days** (app in Testing mode); when ready, publish the OAuth app in Google Console (Audience → Publishing status → In production) so tokens stop expiring.
+- If the folder upload ever 403s, code falls back to uploading without a parent folder.
+- `ticket_archive` table exists in D1 (archive feature NOT yet implemented — backup/restore does not include it yet).
 
 ## Version history (git)
 
@@ -38,6 +48,8 @@ Passwords are PBKDF2-hashed in D1 — never recoverable, only resettable.
 | `v15` `b2550e1` | Hero "Track a Ticket" dark green, footer credits |
 | `v16` `4cdcfe4` | Notifications bell, backup/restore system |
 | `v16.1` `d2db995` | Rate limiter only counts failed logins |
+| `v17` `d8fdb60` | Evidence upload (multipart form, Drive link, admin/intake UI, CSV/PDF) |
+| `v18` (this batch) | GDrive auth switched to OAuth refresh token; token/permission fixes |
 
 ## APK / signing (IMPORTANT)
 
@@ -62,6 +74,8 @@ Passwords are PBKDF2-hashed in D1 — never recoverable, only resettable.
 2. **Edge propagation:** after deploy, new routes can 404 for ~20–60 s; re-issue with `?x=<timestamp>`.
 3. **Git push TLS:** network MITMs GitHub certs (`SEC_E_UNTRUSTED_ROOT`); workaround `git -c http.sslVerify=false push`. PAT went stale once — renew at github.com/settings/tokens (scopes: `repo`).
 4. **SW caching:** cache-first on shell; bump `CACHE = "dpac-portal-vN"` in `public/sw.js` whenever landing/index changes so phones get the update.
+5. **KV eventually-consistent reads:** keys written via API/CLI may be invisible to the Worker at a given edge for 10–60 s — retry instead of "fixing" something.
+6. **Gmail OAuth:** client created before the consent screen existed → device flow fails `invalid_client`; use the localhost redirect flow instead (http://localhost/?code=…).
 
 ## Moving to another computer
 
