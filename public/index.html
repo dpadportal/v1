@@ -113,11 +113,13 @@
   <!-- ============ HEADER ============ -->
   <header class="fixed top-0 inset-x-0 z-40 glass border-b border-white/10">
     <div class="max-w-6xl mx-auto px-4 py-3 md:py-4 flex flex-col items-center text-center">
-      <div class="flex items-center justify-center gap-3 md:gap-4 min-w-0">
+      <div class="flex items-center justify-center gap-3 md:gap-4">
         <img id="headerLogo" src="/sdo.png" alt="Logo" class="h-12 w-12 md:h-16 md:w-16 rounded-lg shadow shrink-0" />
-        <p id="headerSdo" class="font-bold text-lg md:text-3xl text-brand-dark leading-tight whitespace-nowrap" data-i18n="org.title">SDO Nueva Ecija</p>
+        <div class="text-center min-w-0">
+          <p id="headerSdo" class="font-bold text-lg md:text-3xl text-brand-dark leading-tight whitespace-nowrap" data-i18n="org.title">SDO Nueva Ecija</p>
+          <p id="headerDpad" class="mt-0.5 header-dpad text-xs md:text-lg font-bold uppercase leading-tight" data-i18n="org.sub">Division Public Assistance Desk</p>
+        </div>
       </div>
-      <p id="headerDpad" class="mt-1 md:mt-2 header-dpad text-xs md:text-lg font-bold uppercase leading-tight" data-i18n="org.sub">Division Public Assistance Desk</p>
       <p class="mt-1 text-[9px] md:text-[11px] text-brand-dark leading-tight" data-i18n="hero.note">Complies with RA 11032 also known as Ease of Doing Business and Efficient Government Service Delivery Act of 2018</p>
     </div>
   </header>
@@ -943,9 +945,8 @@
     function fitHeaderLines() {
       var dpad = document.getElementById("headerDpad");
       var sdo = document.getElementById("headerSdo");
-      var logo = document.getElementById("headerLogo");
       if (!dpad || !sdo) return;
-      var target = dpad.offsetWidth - (logo ? logo.offsetWidth + 16 : 0);
+      var target = dpad.offsetWidth;
       if (target < 40) return;
       sdo.style.fontSize = "";
       var size = 12;
