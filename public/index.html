@@ -101,9 +101,9 @@
         0 0 32px rgba(255, 215, 0, 0.6);
     }
     .header-dpad {
-      color: #ffffff;
-      -webkit-text-stroke: 1px #000000;
-      -webkit-text-fill-color: #ffffff;
+      color: #062e16;
+      -webkit-text-stroke: 1px rgba(255, 255, 255, 0.9);
+      -webkit-text-fill-color: #062e16;
       paint-order: stroke fill;
     }
   </style>
@@ -113,12 +113,12 @@
   <!-- ============ HEADER ============ -->
   <header class="fixed top-0 inset-x-0 z-40 glass border-b border-white/10">
     <div class="max-w-6xl mx-auto px-4 py-3 md:py-4 flex flex-col items-center text-center">
-      <div class="flex items-center gap-3 md:gap-4 min-w-0">
-        <img src="/sdo.png" alt="Logo" class="h-12 w-12 md:h-16 md:w-16 rounded-lg shadow shrink-0" />
-        <p class="font-bold text-lg md:text-[30px] text-brand-dark leading-tight truncate" data-i18n="org.title">SDO Nueva Ecija</p>
+      <div class="flex items-center justify-center gap-3 md:gap-4 min-w-0">
+        <img id="headerLogo" src="/sdo.png" alt="Logo" class="h-12 w-12 md:h-16 md:w-16 rounded-lg shadow shrink-0" />
+        <p id="headerSdo" class="font-bold text-lg md:text-3xl text-brand-dark leading-tight whitespace-nowrap" data-i18n="org.title">SDO Nueva Ecija</p>
       </div>
-      <p class="mt-1 md:mt-2 header-dpad text-sm md:text-2xl font-bold uppercase leading-tight" data-i18n="org.sub">Division Public Assistance Desk</p>
-      <p class="mt-1 text-[10px] md:text-xs text-white/90 leading-tight" data-i18n="hero.note">Complies with RA 11032 also known as Ease of Doing Business and Efficient Government Service Delivery Act of 2018</p>
+      <p id="headerDpad" class="mt-1 md:mt-2 header-dpad text-xs md:text-lg font-bold uppercase leading-tight" data-i18n="org.sub">Division Public Assistance Desk</p>
+      <p class="mt-1 text-[9px] md:text-[11px] text-brand-dark leading-tight" data-i18n="hero.note">Complies with RA 11032 also known as Ease of Doing Business and Efficient Government Service Delivery Act of 2018</p>
     </div>
   </header>
 
@@ -918,9 +918,9 @@
         navigator.serviceWorker.register("/sw.js").catch(function () {});
       }
 
-      applyI18n();    })();
+      applyI18n();
+    })();
   </script>
-
   <footer class="relative z-10 bg-brand-dark text-white/90">
     <div class="mx-auto max-w-6xl px-4 py-5 text-center">
       <p class="text-xs md:text-sm leading-relaxed">
@@ -931,5 +931,29 @@
       </p>
     </div>
   </footer>
+
+  <script>
+    function fitHeaderLines() {
+      var dpad = document.getElementById("headerDpad");
+      var sdo = document.getElementById("headerSdo");
+      var logo = document.getElementById("headerLogo");
+      if (!dpad || !sdo) return;
+      var target = dpad.offsetWidth - (logo ? logo.offsetWidth + 16 : 0);
+      if (target < 40) return;
+      sdo.style.fontSize = "";
+      var size = 12;
+      while (size < 90 && sdo.offsetWidth < target) {
+        size += 1;
+        sdo.style.fontSize = size + "px";
+      }
+      while (size > 10 && sdo.offsetWidth > target) {
+        size -= 1;
+        sdo.style.fontSize = size + "px";
+      }
+    }
+    window.addEventListener("load", fitHeaderLines);
+    window.addEventListener("resize", fitHeaderLines);
+    document.addEventListener("DOMContentLoaded", fitHeaderLines);
+  </script>
 </body>
 </html>
