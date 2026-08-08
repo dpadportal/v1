@@ -918,13 +918,11 @@
       applyI18n();
     })();
   </script>
-  <div class="relative z-10 flex items-center justify-between gap-3 px-4" style="margin-bottom: 3mm;">
-    <a href="/admin" title="Admin" class="block transition hover:opacity-80 hover:scale-105 active:scale-95">
-      <img src="/admin.png" alt="Admin" class="h-10 w-10 md:h-12 md:w-12 rounded-full shadow" style="filter:brightness(0.75) saturate(1.15)" />
-    </a>
-    <div id="langToggle" class="lang-toggle cursor-pointer select-none" role="button" aria-label="Language">
-      <span data-lang="en">EN</span><span data-lang="tl">PH</span>
-    </div>
+  <a href="/admin" title="Admin" class="fixed bottom-20 left-4 z-40 block transition hover:opacity-80 hover:scale-105 active:scale-95">
+    <img src="/admin.png" alt="Admin" class="h-10 w-10 md:h-12 md:w-12 rounded-md shadow" style="filter:brightness(0.75) saturate(1.15)" />
+  </a>
+  <div id="langToggle" class="lang-toggle fixed bottom-20 right-4 z-40 cursor-pointer select-none" role="button" aria-label="Language">
+    <span data-lang="en">EN</span><span data-lang="tl">PH</span>
   </div>
 
   <footer class="relative z-10 bg-brand-dark text-white/90">
