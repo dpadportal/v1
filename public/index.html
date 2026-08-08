@@ -89,11 +89,16 @@
         0 0 32px rgba(20, 83, 45, 0.65);
     }
     .hero-sub-yellow {
+      font-family: "Times New Roman", Times, serif;
       font-style: italic;
-      color: #ffd700;
-      -webkit-text-stroke: 1px #000000;
-      -webkit-text-fill-color: #ffd700;
+      color: #062e16;
+      -webkit-text-stroke: 1px rgba(255, 255, 255, 0.5);
+      -webkit-text-fill-color: #062e16;
       paint-order: stroke fill;
+      text-shadow:
+        0 0 6px rgba(255, 215, 0, 0.95),
+        0 0 16px rgba(255, 215, 0, 0.85),
+        0 0 32px rgba(255, 215, 0, 0.6);
     }
   </style>
 </head>
@@ -128,7 +133,7 @@
       <h1 class="font-script italic text-3xl sm:text-4xl md:text-6xl hero-glow leading-tight" data-i18n="hero.heading">
         Tell us and we will act on it
       </h1>
-      <p class="mt-5 text-base md:text-lg hero-sub-yellow max-w-2xl leading-relaxed" data-i18n="hero.sub">
+      <p class="mt-5 text-xs md:text-sm hero-sub-yellow max-w-2xl leading-relaxed" data-i18n="hero.sub">
         Dahil gusto ka naming mapakinggan.
       </p>
 
