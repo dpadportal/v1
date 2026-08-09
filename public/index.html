@@ -141,6 +141,15 @@
         </button>
       </div>
     </div>
+
+    <div class="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 px-4 pb-3">
+      <a href="/admin" title="Admin" class="block transition hover:opacity-80 hover:scale-105 active:scale-95">
+        <img src="/admin.png" alt="Admin" class="h-10 w-10 md:h-12 md:w-12 rounded-full shadow" />
+      </a>
+      <div id="langToggle" class="lang-toggle h-10 md:h-12 cursor-pointer select-none items-center shadow-lg" role="button" aria-label="Language">
+        <span data-lang="en">EN</span><span data-lang="tl">PH</span>
+      </div>
+    </div>
   </main>
 
   <!-- ============ FORM MODAL ============ -->
@@ -370,16 +379,6 @@
       </button>
       <button id="appPillClose" type="button" aria-label="Dismiss"
         class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
-    </div>
-  </div>
-
-  <!-- ============ BOTTOM CONTROLS ============ -->
-  <div class="relative z-10 flex items-center justify-between gap-3 px-4 pt-3" style="margin-bottom: 3mm;">
-    <a href="/admin" title="Admin" class="block transition hover:opacity-80 hover:scale-105 active:scale-95">
-      <img src="/admin.png" alt="Admin" class="h-10 w-10 md:h-12 md:w-12 rounded-full shadow" />
-    </a>
-    <div id="langToggle" class="lang-toggle h-10 md:h-12 cursor-pointer select-none items-center shadow-lg" role="button" aria-label="Language">
-      <span data-lang="en">EN</span><span data-lang="tl">PH</span>
     </div>
   </div>
 
