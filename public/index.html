@@ -918,9 +918,18 @@
       applyI18n();
     })();
   </script>
-  <a href="/admin" title="Admin" class="fixed bottom-20 left-4 z-40 block transition hover:opacity-80 hover:scale-105 active:scale-95">
-    <img src="/admin.png" alt="Admin" class="h-10 w-10 md:h-12 md:w-12 rounded-full shadow" style="filter:brightness(0.75) saturate(1.15)" />
-  </a>
+  <div class="fixed bottom-20 left-4 z-40 flex items-center gap-2">
+    <a href="/admin" title="Admin" class="block transition hover:opacity-80 hover:scale-105 active:scale-95">
+      <img src="/admin.png" alt="Admin" class="h-10 w-10 md:h-12 md:w-12 rounded-full shadow" style="filter:brightness(0.75) saturate(1.15)" />
+    </a>
+    <a href="/dpac-portal.apk" download title="Download Android App (APK)" class="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-white shadow transition hover:scale-105 hover:opacity-90 active:scale-95">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7" viewBox="0 0 24 24" fill="none" stroke="#1d4518" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12" />
+        <path d="m6 11 6 6 6-6" />
+        <path d="M5 21h14" />
+      </svg>
+    </a>
+  </div>
   <div id="langToggle" class="lang-toggle fixed bottom-20 right-4 z-40 cursor-pointer select-none" role="button" aria-label="Language">
     <span data-lang="en">EN</span><span data-lang="tl">PH</span>
   </div>
@@ -932,9 +941,6 @@
         <span class="font-semibold text-white">John Christian V. Villanueva</span>,
         <span class="font-semibold text-white">Ivy Rose V. Hipolito</span> &amp;
         <span class="font-semibold text-white">Erickson N. Glodo</span>. 2026
-      </p>
-      <p class="mt-2">
-        <a href="/dpac-portal.apk" download class="text-xs md:text-sm font-semibold underline underline-offset-2 hover:text-white transition">Download Android App (APK)</a>
       </p>
     </div>
   </footer>
