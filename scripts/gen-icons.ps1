@@ -28,7 +28,7 @@ function New-Placeholder([int]$Size, [string]$Out, [int]$Inset) {
 
   $fontSize = [float](($Size - (2 * $Inset)) * 0.30)
   $font = New-Object System.Drawing.Font("Arial", $fontSize, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-  $g.DrawString("DPAC", $font, $white, $rect, $sf)
+  $g.DrawString("DPAD", $font, $white, $rect, $sf)
 
   Save-Png $bmp $Out
 }
@@ -65,7 +65,7 @@ if (Test-Path $SourceIcon) {
   Resize-Png $SourceIcon 64 "$iconsDir\favicon.png"
   New-Maskable $SourceIcon 512 "$iconsDir\icon-maskable-512.png"
 } else {
-  Write-Host "Source icon missing - generating DPAC placeholder."
+  Write-Host "Source icon missing - generating DPAD placeholder."
   New-Placeholder 512 "public\app-icon.png" 0
   New-Placeholder 512 "$iconsDir\icon-512.png" 0
   New-Placeholder 192 "$iconsDir\icon-192.png" 0

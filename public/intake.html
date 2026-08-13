@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Intake Form | DPAC Portal</title>
+  <title>Intake Form | DPAD Portal</title>
   <meta name="robots" content="noindex, nofollow" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -77,7 +77,7 @@
         <img src="/sdo.png" alt="Logo" class="h-8 w-8 md:h-10 md:w-10 rounded-lg shadow shrink-0" />
         <div class="min-w-0">
           <p class="font-bold text-sm md:text-lg text-brand-dark leading-tight truncate">Clients' Feedback Intake Sheet</p>
-          <p class="text-xs text-gray-500 leading-tight truncate" id="subtitleLine">Loading ticket…</p>
+          <p class="text-xs text-gray-500 leading-tight truncate" id="subtitleLine">Loading ticketâ€¦</p>
         </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
@@ -104,29 +104,29 @@
         <p class="text-sm">Republic of the Philippines</p>
         <p class="text-sm">Department of Education</p>
         <p class="font-bold">SCHOOLS DIVISION OF NUEVA ECIJA</p>
-        <p class="font-bold">DIVISION PUBLIC ASSISTANCE COMMITTEE (DPAC) PORTAL</p>
+        <p class="font-bold">DIVISION PUBLIC ASSISTANCE COMMITTEE (DPAD) PORTAL</p>
         <div class="my-4 border-t-2 border-dotted border-gray-400"></div>
         <h1 class="text-xl font-extrabold tracking-wide">CLIENTS' FEEDBACK INTAKE SHEET</h1>
-        <p class="text-sm mt-1">DIVISION PUBLIC ASSISTANCE DESK (DPAC) Reference &amp; Action Transmittal Report</p>
+        <p class="text-sm mt-1">DIVISION PUBLIC ASSISTANCE DESK (DPAD) Reference &amp; Action Transmittal Report</p>
       </div>
 
       <p class="section-title">TICKET IDENTIFICATION &amp; ENDORSEMENT DETAILS</p>
-      <div class="field-row"><div class="field-label">Ticket Reference No.:</div><div class="field-value" id="fRef">—</div></div>
-      <div class="field-row"><div class="field-label">Endorsement Date:</div><div class="field-value" id="fDate">—</div></div>
-      <div class="field-row"><div class="field-label">Ticket Status:</div><div class="field-value" id="fStatus">—</div></div>
-      <div class="field-row"><div class="field-label">Referred To (SDO Unit):</div><div class="field-value" id="fDistrict">—</div></div>
+      <div class="field-row"><div class="field-label">Ticket Reference No.:</div><div class="field-value" id="fRef">â€”</div></div>
+      <div class="field-row"><div class="field-label">Endorsement Date:</div><div class="field-value" id="fDate">â€”</div></div>
+      <div class="field-row"><div class="field-label">Ticket Status:</div><div class="field-value" id="fStatus">â€”</div></div>
+      <div class="field-row"><div class="field-label">Referred To (SDO Unit):</div><div class="field-value" id="fDistrict">â€”</div></div>
 
       <p class="section-title">COMPLAINANT / CLIENT INFORMATION</p>
-      <div class="field-row"><div class="field-label">Name of Client/Caller:</div><div class="field-value" id="fName">—</div></div>
-      <div class="field-row"><div class="field-label">Contact Number(s):</div><div class="field-value" id="fContact">—</div></div>
-      <div class="field-row"><div class="field-label">Email Address:</div><div class="field-value" id="fEmail">—</div></div>
+      <div class="field-row"><div class="field-label">Name of Client/Caller:</div><div class="field-value" id="fName">â€”</div></div>
+      <div class="field-row"><div class="field-label">Contact Number(s):</div><div class="field-value" id="fContact">â€”</div></div>
+      <div class="field-row"><div class="field-label">Email Address:</div><div class="field-value" id="fEmail">â€”</div></div>
 
       <p class="section-title">NATURE AND DETAILS OF CONCERN / COMPLAINT</p>
-      <div class="field-row"><div class="field-label">Nature of Call or Request:</div><div class="field-value" id="fNature">—</div></div>
-      <div class="field-row"><div class="field-label">District:</div><div class="field-value" id="fDistrict2">—</div></div>
-      <div class="field-row"><div class="field-label">School / Office:</div><div class="field-value" id="fSchool">—</div></div>
+      <div class="field-row"><div class="field-label">Nature of Call or Request:</div><div class="field-value" id="fNature">â€”</div></div>
+      <div class="field-row"><div class="field-label">District:</div><div class="field-value" id="fDistrict2">â€”</div></div>
+      <div class="field-row"><div class="field-label">School / Office:</div><div class="field-value" id="fSchool">â€”</div></div>
       <div class="field-row" id="fEvidenceRow" style="display:none"><div class="field-label">Evidence / Proof:</div><div class="field-value" id="fEvidence"></div></div>
-      <div class="field-row"><div class="field-label">Summary of Feedback:</div><div class="field-value" id="fDescription">—</div></div>
+      <div class="field-row"><div class="field-label">Summary of Feedback:</div><div class="field-value" id="fDescription">â€”</div></div>
 
       <p class="section-title">ACTION REQUIRED &amp; SDO DISPOSITION</p>
       <p class="text-sm font-bold mb-2">Remarks / Action Taken by SDO DPAD:</p>
@@ -161,12 +161,12 @@
       document.getElementById("fRef").textContent = ticket.arta_reference_no;
       document.getElementById("fDate").textContent = (ticket.created_at || "").slice(0, 16);
       document.getElementById("fStatus").textContent = ticket.status;
-      document.getElementById("fDistrict").textContent = ticket.district || "—";
-      document.getElementById("fName").textContent = ticket.full_name || "—";
-      document.getElementById("fContact").textContent = ticket.cellphone_number || "—";
+      document.getElementById("fDistrict").textContent = ticket.district || "â€”";
+      document.getElementById("fName").textContent = ticket.full_name || "â€”";
+      document.getElementById("fContact").textContent = ticket.cellphone_number || "â€”";
       document.getElementById("fEmail").textContent = ticket.email_address;
       document.getElementById("fNature").textContent = NATURE_LABELS[ticket.nature_of_request] || ticket.nature_of_request;
-      document.getElementById("fDistrict2").textContent = ticket.district || "—";
+      document.getElementById("fDistrict2").textContent = ticket.district || "â€”";
       document.getElementById("fSchool").textContent = ticket.school_name;
       if (ticket.evidence_file_url) {
         var ev = document.getElementById("fEvidence");

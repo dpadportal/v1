@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Activity Log | DPAC Portal</title>
+  <title>Activity Log | DPAD Portal</title>
   <meta name="robots" content="noindex, nofollow" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -177,14 +177,14 @@
             '<td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">' + esc((r.created_at || "").slice(0, 16)) + "</td>" +
             '<td class="px-4 py-3 text-xs font-semibold">' + esc(r.username) + "</td>" +
             '<td class="px-4 py-3 text-xs">' + esc(ACTION_LABELS[r.action] || r.action) + "</td>" +
-            '<td class="px-4 py-3 text-xs hidden md:table-cell text-gray-600">' + esc(r.detail || "—") + "</td>" +
-            '<td class="px-4 py-3 text-xs hidden lg:table-cell text-gray-400 font-mono">' + esc(r.ip || "—") + "</td>" +
+            '<td class="px-4 py-3 text-xs hidden md:table-cell text-gray-600">' + esc(r.detail || "â€”") + "</td>" +
+            '<td class="px-4 py-3 text-xs hidden lg:table-cell text-gray-400 font-mono">' + esc(r.ip || "â€”") + "</td>" +
             "</tr>";
         }).join("");
       }
 
       document.getElementById("tableMeta").textContent = "Showing " +
-        (total === 0 ? 0 : page * PAGE_SIZE + 1) + "–" + Math.min((page + 1) * PAGE_SIZE, total) + " of " + total + " events";
+        (total === 0 ? 0 : page * PAGE_SIZE + 1) + "â€“" + Math.min((page + 1) * PAGE_SIZE, total) + " of " + total + " events";
       document.getElementById("pageInfo").textContent = "Page " + (page + 1) + " of " + Math.max(1, Math.ceil(total / PAGE_SIZE));
       document.getElementById("prevBtn").disabled = page === 0;
       document.getElementById("nextBtn").disabled = page >= Math.ceil(total / PAGE_SIZE) - 1;

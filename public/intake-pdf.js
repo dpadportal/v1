@@ -34,7 +34,7 @@ function buildIntakeDoc(t) {
     footer: function (currentPage, pageCount) {
       return {
         columns: [
-          { text: "DPAC Portal - Clients' Feedback Intake Sheet", alignment: "left", style: "footerText" },
+          { text: "DPAD Portal - Clients' Feedback Intake Sheet", alignment: "left", style: "footerText" },
           { text: "Page " + currentPage + " of " + pageCount, alignment: "right", style: "footerText" },
         ],
         margin: [40, 10, 40, 0],
@@ -55,10 +55,10 @@ function buildIntakeDoc(t) {
       { text: "Republic of the Philippines", style: "orgHeader" },
       { text: "Department of Education", style: "orgHeader" },
       { text: "SCHOOLS DIVISION OF NUEVA ECIJA", style: "orgHeaderBold" },
-      { text: "DIVISION PUBLIC ASSISTANCE COMMITTEE (DPAC) PORTAL", style: "orgHeaderBold" },
+      { text: "DIVISION PUBLIC ASSISTANCE COMMITTEE (DPAD) PORTAL", style: "orgHeaderBold" },
       intakeDivider(),
       { text: "CLIENTS' FEEDBACK INTAKE SHEET", style: "docTitle" },
-      { text: "DIVISION PUBLIC ASSISTANCE DESK (DPAC) Reference & Action Transmittal Report", style: "docSubtitle" },
+      { text: "DIVISION PUBLIC ASSISTANCE DESK (DPAD) Reference & Action Transmittal Report", style: "docSubtitle" },
 
       intakeSection("TICKET IDENTIFICATION & ENDORSEMENT DETAILS"),
       { table: { widths: ["38%", "62%"], body: [intakeField("Ticket Reference No.:", t.arta_reference_no)] }, layout: "lightHorizontalLines" },

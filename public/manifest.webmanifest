@@ -1,7 +1,7 @@
 {
-  "name": "DPAC Portal",
-  "short_name": "DPAC",
-  "description": "SDO Nueva Ecija Division Public Assistance Committee (DPAC) Portal - file, track, and manage concerns, complaints, and requests under RA 11032 / ARTA.",
+  "name": "DPAD Portal",
+  "short_name": "DPAD",
+  "description": "SDO Nueva Ecija Division Public Assistance Committee (DPAD) Portal - file, track, and manage concerns, complaints, and requests under RA 11032 / ARTA.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
