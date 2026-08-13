@@ -1210,7 +1210,7 @@
         var s = d.status;
         var html = "";
         html += '<p class="font-bold text-gray-700 mb-1">Database (D1)</p>';
-        html += '<p>Storage used: <b>' + fmtSize(s.d1.bytes) + "</b></p>";
+        html += '<p>Storage used: <b>' + (s.d1.bytes != null ? fmtSize(s.d1.bytes) : "n/a") + "</b></p>";
         html += '<p class="ml-2">&middot; Tickets: ' + s.d1.tickets + " rows</p>";
         html += '<p class="ml-2">&middot; Archived: ' + s.d1.archived + " rows</p>";
         html += '<p class="ml-2">&middot; Activity log: ' + s.d1.activityLog + " rows</p>";

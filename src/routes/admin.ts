@@ -619,9 +619,15 @@ admin.get("/system-status", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
 
-  const pageCount = await c.env.DB.prepare(`PRAGMA page_count`).first<{ page_count: number }>();
-  const pageSize = await c.env.DB.prepare(`PRAGMA page_size`).first<{ page_size: number }>();
-  const dbBytes = Number(pageCount?.page_count ?? 0) * Number(pageSize?.page_size ?? 0);
+  let dbBytes: number | null = null;
+  try {
+    const pageCount = await c.env.DB.prepare(`PRAGMA page_count`).first<{ page_count: number }>();
+    const pageSize = await c.env.DB.prepare(`PRAGMA page_size`).first<{ page_size: number }>();
+    dbBytes = Number(pageCount?.page_count ?? 0) * Number(pageSize?.page_size ?? 0);
+  } catch (err) {
+    console.error("System status: D1 PRAGMA not supported:", err);
+    dbBytes = null;
+  }
 
   const countFn = async (table: string): Promise<number> => {
     const r = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first<{ n: number }>();
