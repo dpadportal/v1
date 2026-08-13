@@ -53,7 +53,7 @@ Passwords are PBKDF2-hashed in D1 — never recoverable, only resettable.
 
 ## APK / signing (IMPORTANT)
 
-- APK served at `/dpac-portal.apk` (~1.3 MB signed TWA, package `ne.dpacportal.app`).
+- APK served at `/dpac-portal.apk` (1.0 MiB, package `ne.dpacportal.app`).
 - Icon placeholder: `public/app-icon.png` → replace + run `scripts/gen-icons.ps1`, redeploy. Site is a PWA (`manifest.webmanifest`, `sw.js`, icon set).
 - **Signing keystore** (`dpac-signed-package.zip` + `-INFO.txt`, alias `dpac-key`) is **gitignored** — only exists in project root of THIS machine. Back it up to Google Drive/OneDrive. Critical: Future APK updates MUST use the same keystore.
 - `.well-known/assetlinks.json` served for TWA verification.
