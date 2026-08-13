@@ -619,20 +619,25 @@ admin.get("/system-status", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
 
-  let dbBytes: number | null = null;
-  try {
-    const pageCount = await c.env.DB.prepare(`PRAGMA page_count`).first<{ page_count: number }>();
-    const pageSize = await c.env.DB.prepare(`PRAGMA page_size`).first<{ page_size: number }>();
-    dbBytes = Number(pageCount?.page_count ?? 0) * Number(pageSize?.page_size ?? 0);
-  } catch (err) {
-    console.error("System status: D1 PRAGMA not supported:", err);
-    dbBytes = null;
-  }
-
   const countFn = async (table: string): Promise<number> => {
     const r = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first<{ n: number }>();
     return Number(r?.n ?? 0);
   };
+
+  const sumFn = async (table: string, textCols: string[], perRow: number): Promise<number> => {
+    const sumSql = textCols.map((col) => `COALESCE(SUM(LENGTH(${col})), 0)`).join(" + ");
+    const r = await c.env.DB.prepare(`SELECT ${sumSql} + COUNT(*) * ${perRow} AS n FROM ${table}`).first<{ n: number }>();
+    return Number(r?.n ?? 0);
+  };
+
+  const estTickets = await sumFn("tickets", ["description", "evidence_file_name", "evidence_file_url", "evidence_thumbnail_url", "intake_file_url"], 120);
+  const estArchived = await sumFn("ticket_archive", ["description", "evidence_file_name", "evidence_file_url", "evidence_thumbnail_url", "intake_file_url"], 120);
+  const estLog = await sumFn("activity_log", ["details"], 80);
+  const estAccounts = await sumFn("admin_users", ["password_hash", "salt"], 40);
+  const estPrefs = await sumFn("preferences", ["key", "value"], 0);
+  const estBytes = estTickets + estArchived + estLog + estAccounts + estPrefs;
+
+  const D1_LIMIT_BYTES = 5 * 1024 * 1024 * 1024;
 
   const kvSummary: Array<{ prefix: string; count: number }> = [];
   let kvTotal = 0;
@@ -660,7 +665,9 @@ admin.get("/system-status", async (c) => {
     ok: true,
     status: {
       d1: {
-        bytes: dbBytes,
+        bytes: estBytes,
+        limitBytes: D1_LIMIT_BYTES,
+        estimated: true,
         tickets: await countFn("tickets"),
         archived: await countFn("ticket_archive"),
         activityLog: await countFn("activity_log"),

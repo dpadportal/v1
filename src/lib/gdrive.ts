@@ -282,6 +282,7 @@ export interface DriveStatus {
   quotaUsedBytes?: number;
   quotaLimitBytes?: number;
   folders: DriveFolderInfo[];
+  error?: string;
 }
 
 const DRIVE_STATUS_CACHE = "gdrive:status-cache";
@@ -343,6 +344,6 @@ export async function getDriveStatus(env: Env): Promise<DriveStatus> {
     return status;
   } catch (err) {
     console.error("Drive status check failed:", err);
-    return { connected: false, folders: [] };
+    return { connected: false, folders: [], error: String((err as Error)?.message ?? err) };
   }
 }

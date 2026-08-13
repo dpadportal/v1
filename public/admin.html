@@ -1200,6 +1200,11 @@
       });
     });
 
+    function pctOf(used, limit) {
+      if (!limit) return "—";
+      return (Math.round((used / limit) * 1000) / 10) + "%";
+    }
+
     document.getElementById("prefStatusBtn").addEventListener("click", function () {
       var btn = this;
       var body = document.getElementById("prefStatusBody");
@@ -1210,7 +1215,9 @@
         var s = d.status;
         var html = "";
         html += '<p class="font-bold text-gray-700 mb-1">Database (D1)</p>';
-        html += '<p>Storage used: <b>' + (s.d1.bytes != null ? fmtSize(s.d1.bytes) : "n/a") + "</b></p>";
+        html += '<p>Storage used: <b>' + fmtSize(s.d1.bytes) + "</b>* of " + fmtSize(s.d1.limitBytes) +
+        " (" + pctOf(s.d1.bytes, s.d1.limitBytes) + " of the free-tier threshold)</p>";
+        html += '<p class="text-gray-400">*Estimated from content length &mdash; D1 does not expose exact size.</p>';
         html += '<p class="ml-2">&middot; Tickets: ' + s.d1.tickets + " rows</p>";
         html += '<p class="ml-2">&middot; Archived: ' + s.d1.archived + " rows</p>";
         html += '<p class="ml-2">&middot; Activity log: ' + s.d1.activityLog + " rows</p>";
@@ -1226,10 +1233,14 @@
           html += '<p>Archiving to Drive is disabled in preferences.</p>';
         } else if (!s.drive.connected) {
           html += '<p class="text-red-600">Drive is not connected.</p>';
+          if (s.drive.error) {
+            html += '<p class="text-red-500 text-[11px] break-words">' + esc(s.drive.error) + "</p>";
+          }
         } else {
           html += '<p>Connected' + (s.drive.accountEmail ? " as <b>" + esc(s.drive.accountEmail) + "</b>" : "") + "</p>";
           if (s.drive.quotaLimitBytes) {
-            html += '<p>Storage: <b>' + fmtSize(s.drive.quotaUsedBytes || 0) + "</b> of " + fmtSize(s.drive.quotaLimitBytes) + "</p>";
+            html += '<p>Storage: <b>' + fmtSize(s.drive.quotaUsedBytes || 0) + "</b> of " + fmtSize(s.drive.quotaLimitBytes) +
+              " (" + pctOf(s.drive.quotaUsedBytes || 0, s.drive.quotaLimitBytes) + ")</p>";
           } else {
             html += "<p>Storage: <b>" + fmtSize(s.drive.quotaUsedBytes || 0) + "</b></p>";
           }
