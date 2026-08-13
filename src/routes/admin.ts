@@ -632,8 +632,8 @@ admin.get("/system-status", async (c) => {
 
   const estTickets = await sumFn("tickets", ["description", "evidence_file_name", "evidence_file_url", "evidence_thumbnail_url", "intake_file_url"], 120);
   const estArchived = await sumFn("ticket_archive", ["description", "evidence_file_name", "evidence_file_url", "evidence_thumbnail_url", "intake_file_url"], 120);
-  const estLog = await sumFn("activity_log", ["details"], 80);
-  const estAccounts = await sumFn("admin_users", ["password_hash", "salt"], 40);
+  const estLog = await sumFn("activity_log", ["detail"], 80);
+  const estAccounts = await sumFn("admin_users", ["password_hash", "password_salt"], 40);
   const estPrefs = await sumFn("preferences", ["key", "value"], 0);
   const estBytes = estTickets + estArchived + estLog + estAccounts + estPrefs;
 
