@@ -139,11 +139,11 @@
       <div class="mt-10 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
         <button id="openFormBtn" type="button"
           class="px-8 py-4 rounded-xl bg-brand text-white font-bold text-lg shadow-lg shadow-black/30 hover:bg-brand-dark hover:scale-[1.02] active:scale-[0.99] transition">
-          <span data-i18n="hero.file">File a Feedback</span>
+          <span data-i18n="hero.file">Share Your Feedback</span>
         </button>
         <button id="openTrackBtn" type="button"
           class="px-8 py-4 rounded-xl bg-white/40 backdrop-blur-sm font-bold text-lg border-2 border-brand-dark hover:bg-white/60 hover:scale-[1.02] active:scale-[0.99] transition btn-stroke">
-          <span data-i18n="hero.track">Track a Ticket</span>
+          <span data-i18n="hero.track">Track Your Ticket</span>
         </button>
       </div>
     </div>
@@ -178,7 +178,7 @@
             class="h-9 w-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition text-xl font-semibold">&times;</button>
         </div>
         <div class="px-6 py-2 text-sm text-gray-600 border-b border-gray-100" data-i18n="form.sub">
-          Name and phone are optional; email is required for verification and tracking.
+          We just need your email so we can verify and update you on your concern. Name and phone are optional.
         </div>
 
         <form id="submitForm" class="px-6 py-5 space-y-4" novalidate>
@@ -232,7 +232,7 @@
               </select>
             </div>
             <div>
-              <label for="school_name" class="block text-sm font-semibold text-gray-700" data-i18n="form.school">School / Office (where the concern is intended for) *</label>
+              <label for="school_name" class="block text-sm font-semibold text-gray-700" data-i18n="form.school">School / Office (related to your concern) *</label>
               <input id="school_name" name="school_name" type="text" required maxlength="200"
                 placeholder="e.g. Nueva Ecija High School"
                 class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
@@ -413,11 +413,11 @@
           "lang.en": "English", "lang.tl": "Tagalog",
           "hero.heading": "Tell us and we will act on it",
           "hero.sub": "Tugon sa pangangailangan, serbisyo para sa mamamayan.",
-          "hero.file": "File a Feedback",
-          "hero.track": "Track a Ticket",
+          "hero.file": "Share Your Feedback",
+          "hero.track": "Track Your Ticket",
           "hero.note": "Complies with RA 11032 also known as Ease of Doing Business and Efficient Government Service Delivery Act of 2018",
           "form.title": "File a Feedback",
-          "form.sub": "Name and phone are optional; email is required for verification and tracking.",
+          "form.sub": "We just need your email so we can verify and update you on your concern. Name and phone are optional.",
           "form.fullName": "Full Name (optional)",
           "form.cellphone": "Cellphone Number (optional)",
           "form.email": "Email Address *",
@@ -426,7 +426,7 @@
           "form.district": "District / Division (optional)",
           "form.selectDistrict": "Select district / division",
           "form.other": "Other",
-          "form.school": "School / Office (where the concern is intended for) *",
+          "form.school": "School / Office (related to your concern) *",
           "form.nature": "Nature of Concern *",
           "form.selectNature": "Select one",
           "form.natureComplaint": "Complaint",
@@ -455,7 +455,7 @@
           "status.Pending": "Pending",
           "status.Under Review": "Under Review",
           "status.Resolved": "Resolved",
-          "err.emailInvalid": "Enter a valid email address.",
+          "err.emailInvalid": "Please enter a valid email address.",
           "err.codeSent": "Code sent. Check your inbox.",
           "err.cooldown": "Please wait a moment before requesting a new code.",
           "err.fillAll": "Please complete all required fields and verify your email.",
@@ -469,20 +469,20 @@
           "lang.en": "English", "lang.tl": "Tagalog",
           "hero.heading": "Tell us and we will act on it",
           "hero.sub": "Tugon sa pangangailangan, serbisyo para sa mamamayan.",
-          "hero.file": "Mag-file ng Feedback",
-          "hero.track": "Sundan ang Ticket",
+          "hero.file": "Ibahagi ang Iyong Feedback",
+          "hero.track": "Sundan ang Iyong Ticket",
           "hero.note": "Sumusunod sa RA 11032 na kilala rin bilang Ease of Doing Business and Efficient Government Service Delivery Act of 2018",
           "form.title": "Magsumite ng Reklamo, Komento, o Kahilingan",
-          "form.sub": "Opsyonal ang pangalan at telepono; kinakailangan ang email para sa beripikasyon at pagsubaybay.",
+          "form.sub": "Kinakailangan lang ang email para ma-verify at ma-update ka sa iyong isyu. Opsyonal ang pangalan at telepono.",
           "form.fullName": "Buong Pangalan (opsyonal)",
           "form.cellphone": "Numero ng Cellphone (opsyonal)",
           "form.email": "Email Address *",
           "form.sendCode": "Ipadala ang Code",
-          "form.otp": "Verification Code (6 digit)",
+          "form.otp": "Verification Code (6 na digit)",
           "form.district": "Distrito / Dibisyon (opsyonal)",
           "form.selectDistrict": "Pumili ng distrito / dibisyon",
           "form.other": "Iba pa",
-          "form.school": "Paaralan / Opisina (kung saan nakalaan ang isyu) *",
+          "form.school": "Paaralan / Opisina (may kaugnayan sa iyong isyu) *",
           "form.nature": "Uri ng Isyu *",
           "form.selectNature": "Pumili ng isa",
           "form.natureComplaint": "Reklamo (Complaint)",
@@ -490,8 +490,8 @@
           "form.naturePraise": "Papuri (Praise)",
           "form.description": "Paglalarawan *",
           "form.evidence": "Maglakip ng Ebidensya / Patunay (opsyonal)",
-          "form.evidenceHint": "Larawan o PDF, hanggang 10 MB. Iniimbak nang ligtas para sa beripikasyon.",
-          "form.clear": "Alisin",
+          "form.evidenceHint": "Larawan o PDF, hanggang 10 MB. Ligtas na iniimbak para sa pagpapatunay.",
+          "form.clear": "Burahin",
           "form.captcha": "Pagpapatunay ng tao",
           "form.refresh": "Bagong tanong",
           "form.consent": "Pumapayag akong kolektahin ang aking personal na impormasyon alinsunod sa RA 10173 na kilala rin bilang Data Privacy Act of 2012 para sa pagproseso ng kahilingang ito.",
@@ -511,10 +511,10 @@
           "status.Pending": "Nakabinbin",
           "status.Under Review": "Sinusuri",
           "status.Resolved": "Nalutas",
-          "err.emailInvalid": "Maglagay ng wastong email address.",
+          "err.emailInvalid": "Pakilagay ang wastong email address.",
           "err.codeSent": "Naipadala ang code. Tingnan ang iyong inbox.",
-          "err.cooldown": "Mangyaring maghintay sandali bago humingi ng bagong code.",
-          "err.fillAll": "Kumpletuhin ang lahat ng kinakailangang field at i-verify ang iyong email.",
+          "err.cooldown": "Mangyaring maghintay ng ilang sandali bago humingi ng bagong code.",
+          "err.fillAll": "Punan ang lahat ng kinakailangang impormasyon at i-verify ang iyong email.",
           "err.evidenceSize": "Ang attachment ay dapat 10 MB o mas maliit.",
           "err.evidenceType": "Ang attachment ay dapat larawan (PNG/JPG/GIF/WebP) o PDF.",
           "err.generic": "May nangyaring mali. Subukan muli."
