@@ -13,6 +13,7 @@ import { sha256 } from "../lib/crypto";
 import { generateArtaReference, isUniqueConstraintError } from "../lib/arta";
 import { sendConfirmationEmail } from "../lib/email";
 import { uploadEvidence } from "../lib/gdrive";
+import { getPrefs } from "../lib/prefs";
 import { createRateLimiter, clientIp } from "../lib/rate-limit";
 
 const OTP_MAX_ATTEMPTS = 5;
@@ -105,6 +106,14 @@ submit.post("/", async (c) => {
     if (!EMAIL_RE.test(email)) return c.json({ ok: false, error: "Enter a valid email address." }, 400);
     if (email.length > MAX_LENGTHS.email) return c.json({ ok: false, error: "Email address is too long." }, 400);
     if (!OTP_RE.test(otpCode)) return c.json({ ok: false, error: "Enter the 6-digit code sent to your email." }, 400);
+  }
+
+  const prefs = await getPrefs(c.env);
+  if (isAnonymous && prefs.anonymous_allowed !== "1") {
+    return c.json({ ok: false, error: "Anonymous submissions are currently disabled. Please provide an email address." }, 400);
+  }
+  if (prefs.evidence_required === "1" && !evidence) {
+    return c.json({ ok: false, error: "Evidence is required for this submission." }, 400);
   }
   if (!schoolName) return c.json({ ok: false, error: "School / Paaralan is required." }, 400);
   if (schoolName.length > MAX_LENGTHS.schoolName) return c.json({ ok: false, error: "School name is too long." }, 400);
@@ -215,10 +224,10 @@ submit.post("/", async (c) => {
       const uploaded = await uploadEvidence(c.env, evidence.name, evidence.mime, evidence.bytes, referenceNo);
       evidenceUrl = uploaded.webViewLink;
       await c.env.DB.prepare(
-        `UPDATE tickets SET evidence_file_name = ?, evidence_file_url = ?, evidence_mime = ?, evidence_size = ?
+        `UPDATE tickets SET evidence_file_name = ?, evidence_file_url = ?, evidence_mime = ?, evidence_size = ?, evidence_thumbnail_url = ?
          WHERE arta_reference_no = ?`
       )
-        .bind(uploaded.name, evidenceUrl, uploaded.mimeType, evidence.size, referenceNo)
+        .bind(uploaded.name, evidenceUrl, uploaded.mimeType, evidence.size, uploaded.thumbnailLink, referenceNo)
         .run();
     } catch (err) {
       console.error("Evidence upload failed:", err);
@@ -227,7 +236,7 @@ submit.post("/", async (c) => {
     }
   }
 
-  if (!isAnonymous) {
+  if (!isAnonymous && prefs.confirmation_email === "1") {
     await sendConfirmationEmail(c.env, email, referenceNo, NATURE_LABELS[nature], description);
   }
 

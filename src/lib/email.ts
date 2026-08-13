@@ -143,6 +143,7 @@ async function smtpSend(
     await writeLine(".");
     await expect(250, "message accepted");
 
+    await env.KV.put("meta:last_email", new Date().toISOString()).catch(() => undefined);
     await writeLine("QUIT");
     await reader.read().catch(() => undefined);
 
@@ -269,4 +270,29 @@ export async function sendIntakeFormEmail(
     html,
     [{ filename, contentType: "application/pdf", base64: pdfBase64 }]
   );
+}
+
+export async function sendIntakeFormLinkEmail(
+  env: Env,
+  to: string,
+  referenceNo: string,
+  fileUrl: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const safeReference = escapeHtml(referenceNo);
+  const safeUrl = escapeHtml(fileUrl);
+  const html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+      <h2 style="margin: 0 0 12px; color: #2e6b27;">Intake form / Intake form</h2>
+      <p style="margin: 0 0 8px; color: #374151;">The Clients' Feedback Intake Sheet for ticket <strong>${safeReference}</strong> is ready. Open it here:</p>
+      <p style="margin: 0 0 8px;"><a href="${safeUrl}" style="color: #2e6b27; font-weight: 700;">Open Intake Form / Buksan ang Intake Form</a></p>
+      <p style="margin: 0; font-size: 12px; color: #6b7280;">Kalakip ang link sa Clients' Feedback Intake Sheet para sa ticket <strong>${safeReference}</strong>.</p>
+    </div>
+  `;
+
+  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
+    console.log(`[dev] Intake form link email for ${to}: ${referenceNo} -> ${fileUrl}`);
+    return { ok: true };
+  }
+
+  return smtpSend(env, to, `Clients' Feedback Intake Sheet - ${referenceNo}`, html);
 }

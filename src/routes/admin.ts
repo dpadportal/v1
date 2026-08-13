@@ -1,4 +1,5 @@
 ﻿import { Hono } from "hono";
+import type { Context } from "hono";
 import type { Env, TicketStatus } from "../types";
 import { TICKET_STATUSES } from "../types";
 import { adminGuard, logActivity } from "../lib/auth";
@@ -6,7 +7,13 @@ import { clientIp } from "../lib/rate-limit";
 import { createRateLimiter } from "../lib/rate-limit";
 import { EMAIL_RE, MAX_LENGTHS } from "../lib/validators";
 import { hashPassword, verifyPassword } from "../lib/password";
-import { sendIntakeFormEmail, sendStatusUpdateEmail } from "../lib/email";
+import {
+  sendIntakeFormEmail,
+  sendIntakeFormLinkEmail,
+  sendStatusUpdateEmail,
+} from "../lib/email";
+import { uploadArchiveFiles, uploadExportCsv, uploadIntakePdf, getDriveStatus } from "../lib/gdrive";
+import { getPrefs, getPref, setPrefs, PREF_DEFAULTS } from "../lib/prefs";
 import { createSnapshot, dumpDatabase, getSnapshot, listSnapshots, restoreSnapshot } from "../lib/backup";
 
 const admin = new Hono<{ Bindings: Env }>();
@@ -14,6 +21,31 @@ const admin = new Hono<{ Bindings: Env }>();
 function escapeLike(q: string): string {
   return q.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
+
+async function verifyCurrentPassword(
+  c: Context<{ Bindings: Env }>,
+  username: string,
+  password: string
+): Promise<true | Response> {
+  const row = await c.env.DB.prepare(
+    `SELECT password_salt, password_hash FROM admin_users WHERE username = ?`
+  )
+    .bind(username)
+    .first<{ password_salt: string; password_hash: string }>();
+
+  const limiter = createRateLimiter(c.env.KV, "rl:admin-verify", 5, 300);
+  const { allowed } = await limiter.check(clientIp(c));
+  if (!allowed) {
+    return c.json({ ok: false, error: "Too many failed password attempts. Try again later." }, 429);
+  }
+  if (!row || !(await verifyPassword(password, row.password_salt, row.password_hash))) {
+    await logActivity(c.env, username, "password_fail", "Password confirmation failed", clientIp(c));
+    return c.json({ ok: false, error: "Incorrect password." }, 403);
+  }
+  return true;
+}
+
+const PDF_BASE64_RE = /^[A-Za-z0-9+/=\r\n]+$/;
 
 admin.get("/stats", async (c) => {
   const auth = await adminGuard(c);
@@ -89,7 +121,8 @@ admin.get("/tickets", async (c) => {
 
   const rows = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
-            district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous
+            district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous,
+            evidence_thumbnail_url, intake_file_url
      FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
   )
     .bind(...params, limit, offset)
@@ -107,7 +140,7 @@ admin.patch("/tickets/:id", async (c) => {
     return c.json({ ok: false, error: "Invalid ticket id." }, 400);
   }
 
-  let body: { status?: unknown };
+  let body: { status?: unknown; password?: unknown };
   try {
     body = await c.req.json();
   } catch {
@@ -118,6 +151,11 @@ admin.patch("/tickets/:id", async (c) => {
   if (!TICKET_STATUSES.includes(status as TicketStatus)) {
     return c.json({ ok: false, error: "Invalid status." }, 400);
   }
+
+  const password = String(body.password ?? "");
+  if (!password) return c.json({ ok: false, error: "Enter your password to confirm the status change." }, 400);
+  const verified = await verifyCurrentPassword(c, auth.user.username, password);
+  if (verified !== true) return verified;
 
   const row = await c.env.DB.prepare(
     `SELECT arta_reference_no, email_address, is_anonymous FROM tickets WHERE id = ?`
@@ -134,7 +172,12 @@ admin.patch("/tickets/:id", async (c) => {
     .bind(status, id)
     .run();
 
-  if (!Number(row.is_anonymous) && row.email_address) {
+  const prefs = await getPrefs(c.env);
+  if (
+    !Number(row.is_anonymous) &&
+    row.email_address &&
+    prefs.email_notifications === "1"
+  ) {
     await sendStatusUpdateEmail(
       c.env,
       String(row.email_address),
@@ -223,6 +266,10 @@ admin.get("/tickets/export", async (c) => {
   const filename = `tickets-${new Date().toISOString().slice(0, 10)}.csv`;
 
   await logActivity(c.env, auth.user.username, "export_tickets", `status=${status || "all"}${q ? ` q=${q}` : ""}`, clientIp(c));
+  const archived = await uploadExportCsv(c.env, new Date().toISOString().slice(0, 10), csv);
+  if (archived) {
+    await logActivity(c.env, auth.user.username, "export_archive", `Copy saved to Google Drive (${archived.name})`, clientIp(c));
+  }
 
   return new Response(csv, {
     headers: {
@@ -243,7 +290,8 @@ admin.get("/tickets/:id", async (c) => {
 
   const row = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
-            district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous
+            district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous,
+            evidence_thumbnail_url, intake_file_url
      FROM tickets WHERE id = ?`
   )
     .bind(id)
@@ -292,14 +340,334 @@ admin.post("/tickets/:id/email", async (c) => {
     return c.json({ ok: false, error: "Ticket not found." }, 404);
   }
 
-  const sent = await sendIntakeFormEmail(c.env, to, String(row.arta_reference_no), pdfBase64);
+  const pdfBytes = base64ToBytes(pdfBase64);
+  let linkUrl: string | null = null;
+  try {
+    const uploaded = await uploadIntakePdf(c.env, String(row.arta_reference_no), pdfBytes);
+    linkUrl = uploaded.webViewLink;
+    await c.env.DB.prepare(`UPDATE tickets SET intake_file_url = ? WHERE id = ?`)
+      .bind(linkUrl, id)
+      .run();
+  } catch (err) {
+    console.error("Intake PDF Drive upload failed:", err);
+  }
+
+  const sent = linkUrl
+    ? await sendIntakeFormLinkEmail(c.env, to, String(row.arta_reference_no), linkUrl)
+    : await sendIntakeFormEmail(c.env, to, String(row.arta_reference_no), pdfBase64);
   if (!sent.ok) {
     return c.json({ ok: false, error: sent.error }, 500);
   }
 
-  await logActivity(c.env, auth.user.username, "email_intake_form", `${row.arta_reference_no} -> ${to}`, clientIp(c));
+  await logActivity(
+    c.env,
+    auth.user.username,
+    "email_intake_form",
+    `${row.arta_reference_no} -> ${to}${linkUrl ? " (Drive link)" : " (attachment)"}`,
+    clientIp(c)
+  );
 
-  return c.json({ ok: true, message: `Intake form sent to ${to}.` });
+  return c.json({
+    ok: true,
+    message: linkUrl
+      ? `Intake form saved to Google Drive and sent to ${to}.`
+      : `Intake form sent to ${to}.`,
+  });
+});
+
+function base64ToBytes(base64: string): ArrayBuffer {
+  const binary = atob(base64.replace(/\s+/g, ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+admin.post("/tickets/:id/intake-archive", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.json({ ok: false, error: "Invalid ticket id." }, 400);
+  }
+
+  let body: { pdfBase64?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "Invalid request payload." }, 400);
+  }
+
+  const pdfBase64 = String(body.pdfBase64 ?? "").trim();
+  if (!pdfBase64 || pdfBase64.length > 5_000_000) {
+    return c.json({ ok: false, error: "Missing or invalid PDF." }, 400);
+  }
+  if (!PDF_BASE64_RE.test(pdfBase64)) {
+    return c.json({ ok: false, error: "Invalid PDF." }, 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    `SELECT arta_reference_no FROM tickets WHERE id = ?`
+  )
+    .bind(id)
+    .first();
+  if (!row) return c.json({ ok: false, error: "Ticket not found." }, 404);
+
+  let linkUrl: string;
+  try {
+    const uploaded = await uploadIntakePdf(c.env, String(row.arta_reference_no), base64ToBytes(pdfBase64));
+    linkUrl = uploaded.webViewLink;
+  } catch (err) {
+    console.error("Intake PDF Drive archive failed:", err);
+    return c.json({ ok: false, error: "Could not save the PDF to Google Drive." }, 502);
+  }
+
+  await c.env.DB.prepare(`UPDATE tickets SET intake_file_url = ? WHERE id = ?`)
+    .bind(linkUrl, id)
+    .run();
+  await logActivity(c.env, auth.user.username, "intake_archive", `${row.arta_reference_no} -> Drive`, clientIp(c));
+
+  return c.json({ ok: true, url: linkUrl, message: "Intake form saved to Google Drive." });
+});
+
+admin.post("/tickets/:id/archive", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.json({ ok: false, error: "Invalid ticket id." }, 400);
+  }
+
+  let body: { password?: unknown; pdfBase64?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "Invalid request payload." }, 400);
+  }
+
+  const password = String(body.password ?? "");
+  if (!password) return c.json({ ok: false, error: "Enter your password to confirm the archive." }, 400);
+  const verified = await verifyCurrentPassword(c, auth.user.username, password);
+  if (verified !== true) return verified;
+
+  const pdfBase64 = String(body.pdfBase64 ?? "").trim();
+  if (!pdfBase64 || pdfBase64.length > 5_000_000) {
+    return c.json({ ok: false, error: "Missing or invalid Intake PDF." }, 400);
+  }
+  if (!PDF_BASE64_RE.test(pdfBase64)) {
+    return c.json({ ok: false, error: "Invalid Intake PDF." }, 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    `SELECT * FROM tickets WHERE id = ?`
+  )
+    .bind(id)
+    .first<Record<string, unknown>>();
+  if (!row) return c.json({ ok: false, error: "Ticket not found." }, 404);
+  if (String(row.status) !== "Resolved") {
+    return c.json({ ok: false, error: "Only Resolved tickets can be archived." }, 400);
+  }
+
+  const existingRef = await c.env.DB.prepare(
+    `SELECT arta_reference_no FROM ticket_archive WHERE arta_reference_no = ?`
+  )
+    .bind(String(row.arta_reference_no))
+    .first();
+  if (existingRef) return c.json({ ok: false, error: "This ticket is already archived." }, 409);
+
+  const prefs = await getPrefs(c.env);
+  let driveUrl: string | null = null;
+  if (prefs.archive_to_drive === "1") {
+    const jsonRecord = JSON.stringify(
+      {
+        archivedAt: new Date().toISOString(),
+        ticket: row,
+        driveEvidenceLink: row.evidence_file_url ?? null,
+      },
+      null,
+      2
+    );
+    try {
+      const uploaded = await uploadArchiveFiles(
+        c.env,
+        String(row.arta_reference_no),
+        base64ToBytes(pdfBase64),
+        jsonRecord
+      );
+      driveUrl = uploaded.pdf.webViewLink;
+    } catch (err) {
+      console.error("Archive Drive upload failed:", err);
+      return c.json({ ok: false, error: "Could not save the archive to Google Drive. Please try again." }, 502);
+    }
+  }
+
+  await c.env.DB.prepare(
+    `INSERT INTO ticket_archive
+      (arta_reference_no, full_name, cellphone_number, email_address, district, school_name, nature_of_request,
+       description, privacy_consent, status, created_at, updated_at, archived_at,
+       evidence_file_name, evidence_file_url, evidence_mime, evidence_size, evidence_thumbnail_url,
+       intake_file_url, is_anonymous)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Resolved', ?, ?, datetime('now'),
+       ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      row.arta_reference_no,
+      row.full_name,
+      row.cellphone_number,
+      row.email_address,
+      row.district,
+      row.school_name,
+      row.nature_of_request,
+      row.description,
+      row.privacy_consent,
+      row.created_at,
+      row.updated_at,
+      row.evidence_file_name,
+      row.evidence_file_url,
+      row.evidence_mime,
+      row.evidence_size,
+      row.evidence_thumbnail_url,
+      driveUrl,
+      row.is_anonymous
+    )
+    .run();
+
+  await c.env.DB.prepare(`DELETE FROM tickets WHERE id = ?`).bind(id).run();
+
+  await logActivity(
+    c.env,
+    auth.user.username,
+    "ticket_archive",
+    `${row.arta_reference_no}${driveUrl ? " -> Google Drive" : ""}`,
+    clientIp(c)
+  );
+
+  return c.json({
+    ok: true,
+    message: driveUrl ? "Ticket archived and saved to Google Drive." : "Ticket archived.",
+    driveUrl,
+  });
+});
+
+admin.get("/preferences", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+
+  return c.json({ ok: true, preferences: await getPrefs(c.env) });
+});
+
+admin.put("/preferences", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+
+  let body: { preferences?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "Invalid request payload." }, 400);
+  }
+
+  const incoming = (body.preferences ?? {}) as Record<string, unknown>;
+  const clean: Record<string, string> = {};
+  for (const [key, value] of Object.entries(incoming)) {
+    if (!(key in PREF_DEFAULTS)) continue;
+    const str = String(value);
+    if (key === "portal_title") {
+      clean[key] = str.trim().slice(0, 60);
+      continue;
+    }
+    clean[key] = str === "1" ? "1" : "0";
+  }
+  if (!Object.keys(clean).length) {
+    return c.json({ ok: false, error: "No valid preferences to update." }, 400);
+  }
+
+  await setPrefs(c.env, clean);
+  await logActivity(c.env, auth.user.username, "prefs_update", Object.keys(clean).join(","), clientIp(c));
+
+  return c.json({ ok: true, preferences: await getPrefs(c.env) });
+});
+
+admin.get("/about", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+
+  const lastEmail = await c.env.KV.get("meta:last_email");
+  const snapshots = await listSnapshots(c.env);
+
+  return c.json({
+    ok: true,
+    about: {
+      name: "DPAD Portal",
+      version: "1.1.0",
+      description:
+        "Division Public Assistance Desk - feedback, complaint, and request portal. Bilingual (English/Tagalog), ARTA-compliant reference numbers (ARTA-YYYY-XXXXX).",
+      stack: ["Cloudflare Workers", "Hono", "D1 (SQLite)", "KV", "Cloudflare Assets", "Google Drive"],
+      cron: "0 3 * * SUN",
+      compliance: [
+        "RA 11032 - Ease of Doing Business and Efficient Government Service Delivery Act of 2018",
+        "RA 10173 - Data Privacy Act of 2012",
+      ],
+      lastEmail,
+      lastBackup: snapshots.length ? snapshots[snapshots.length - 1].createdAt : null,
+    },
+  });
+});
+
+admin.get("/system-status", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+
+  const pageCount = await c.env.DB.prepare(`PRAGMA page_count`).first<{ page_count: number }>();
+  const pageSize = await c.env.DB.prepare(`PRAGMA page_size`).first<{ page_size: number }>();
+  const dbBytes = Number(pageCount?.page_count ?? 0) * Number(pageSize?.page_size ?? 0);
+
+  const countFn = async (table: string): Promise<number> => {
+    const r = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first<{ n: number }>();
+    return Number(r?.n ?? 0);
+  };
+
+  const kvSummary: Array<{ prefix: string; count: number }> = [];
+  let kvTotal = 0;
+  for (const prefix of ["otp:", "captcha:", "backup:", "rl:", "gdrive:", "meta:"]) {
+    let count = 0;
+    let page = await c.env.KV.list({ prefix });
+    count += page.keys.length;
+    while (!page.list_complete) {
+      page = await c.env.KV.list({ prefix, cursor: page.cursor });
+      count += page.keys.length;
+    }
+    kvTotal += count;
+    kvSummary.push({ prefix: prefix.slice(0, -1), count });
+  }
+
+  let drive = null;
+  try {
+    const { getPref } = await import("../lib/prefs");
+    if ((await getPref(c.env, "archive_to_drive")) === "1") drive = await getDriveStatus(c.env);
+  } catch {
+    drive = null;
+  }
+
+  return c.json({
+    ok: true,
+    status: {
+      d1: {
+        bytes: dbBytes,
+        tickets: await countFn("tickets"),
+        archived: await countFn("ticket_archive"),
+        activityLog: await countFn("activity_log"),
+        accounts: await countFn("admin_users"),
+      },
+      kv: { total: kvTotal, byPrefix: kvSummary },
+      drive,
+      smtp: {
+        configured: Boolean(c.env.SMTP_USER && c.env.SMTP_PASSWORD),
+        lastEmail: await c.env.KV.get("meta:last_email"),
+      },
+    },
+  });
 });
 
 const USERNAME_RE = /^[A-Za-z0-9_.-]{3,30}$/;

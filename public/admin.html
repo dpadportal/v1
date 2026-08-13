@@ -52,6 +52,12 @@
         <a href="/accounts" class="hidden rounded-lg bg-white border border-gray-300 font-semibold px-2 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition" id="accountsLink">
           Accounts
         </a>
+        <button type="button" class="hidden rounded-lg bg-white border border-gray-300 font-semibold px-2 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition" id="prefsLink">
+          Preferences
+        </button>
+        <button type="button" class="hidden rounded-lg bg-white border border-gray-300 font-semibold px-2 md:px-4 py-2 text-xs md:text-sm hover:bg-gray-50 transition" id="aboutLink">
+          About
+        </button>
         <div class="relative" id="bellWrap">
           <button id="bellBtn" type="button" aria-label="Notifications"
             class="hidden relative rounded-lg bg-white border border-gray-300 font-semibold px-2 md:px-3 py-2 hover:bg-gray-50 transition">
@@ -262,6 +268,8 @@
 
         <div class="hidden" id="mEvidenceWrap">
           <p class="text-xs font-bold text-gray-500 uppercase mb-1">Evidence / Proof</p>
+          <img id="mEvidenceThumb" src="#" alt="Evidence preview"
+            class="hidden max-h-40 rounded-xl border border-gray-200 mb-2 object-contain" />
           <a id="mEvidenceLink" href="#" target="_blank" rel="noopener" class="text-sm font-semibold text-brand underline underline-offset-2"></a>
           <p id="mEvidenceMeta" class="text-xs text-gray-400 mt-0.5"></p>
         </div>
@@ -276,6 +284,10 @@
             class="rounded-lg bg-brand text-white font-bold px-4 py-2 text-sm hover:bg-brand-dark transition whitespace-nowrap">
             Open Intake Form
           </button>
+          <button id="savePdfBtn" type="button"
+            class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition whitespace-nowrap">
+            Save PDF to Drive
+          </button>
           <div class="flex-1 flex gap-2" id="emailSendWrap">
             <input id="emailToInput" type="email" placeholder="Email address to send the intake form…"
               class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
@@ -286,6 +298,118 @@
           </div>
         </div>
         <p id="emailHint" class="hidden text-xs text-gray-500">Generating PDF…</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="passwordModal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/60" id="passwordBackdrop"></div>
+    <div class="relative z-10 min-h-full flex items-center justify-center p-4">
+      <div class="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 bg-brand text-white">
+          <h2 class="text-lg font-bold" id="passwordModalTitle">Confirm action</h2>
+          <button id="passwordClose" type="button" aria-label="Close"
+            class="h-9 w-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition text-xl font-semibold">&times;</button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <p class="text-sm text-gray-600" id="passwordModalDesc"></p>
+          <input id="passwordInput" type="password" autocomplete="current-password" placeholder="Your password"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand" />
+          <p id="passwordError" class="hidden text-sm font-semibold text-red-600"></p>
+          <div class="flex justify-end gap-2">
+            <button id="passwordCancel" type="button"
+              class="rounded-lg bg-gray-200 font-semibold px-4 py-2 text-sm hover:bg-gray-300 transition">Cancel</button>
+            <button id="passwordConfirm" type="button"
+              class="rounded-lg bg-brand text-white font-bold px-4 py-2 text-sm hover:bg-brand-dark transition">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="prefsModal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/60" id="prefsBackdrop"></div>
+    <div class="relative z-10 min-h-full overflow-y-auto py-6 px-4">
+      <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 bg-brand text-white">
+          <h2 class="text-lg font-bold">Preferences</h2>
+          <button id="prefsClose" type="button" aria-label="Close"
+            class="h-9 w-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition text-xl font-semibold">&times;</button>
+        </div>
+        <div class="px-6 py-5 space-y-6 max-h-[75vh] overflow-y-auto">
+          <div>
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Settings</p>
+            <div class="space-y-3">
+              <label class="flex items-center justify-between gap-3">
+                <span class="text-sm text-gray-700">Email notifications on status update</span>
+                <input id="pref_notifications" type="checkbox" class="h-5 w-5 accent-brand" />
+              </label>
+              <label class="flex items-center justify-between gap-3">
+                <span class="text-sm text-gray-700">Confirmation email after submission</span>
+                <input id="pref_confirmation" type="checkbox" class="h-5 w-5 accent-brand" />
+              </label>
+              <label class="flex items-center justify-between gap-3">
+                <span class="text-sm text-gray-700">Anonymous submissions</span>
+                <input id="pref_anonymous" type="checkbox" class="h-5 w-5 accent-brand" />
+              </label>
+              <label class="flex items-center justify-between gap-3">
+                <span class="text-sm text-gray-700">Evidence required on all submissions</span>
+                <input id="pref_evidence" type="checkbox" class="h-5 w-5 accent-brand" />
+              </label>
+              <label class="flex items-center justify-between gap-3">
+                <span class="text-sm text-gray-700">Save archived tickets to Google Drive</span>
+                <input id="pref_archiveToDrive" type="checkbox" class="h-5 w-5 accent-brand" />
+              </label>
+              <div>
+                <label for="pref_portalTitle" class="block text-sm text-gray-700 mb-1">Portal title</label>
+                <input id="pref_portalTitle" type="text" maxlength="60"
+                  class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+              </div>
+            </div>
+            <button id="prefSaveBtn" type="button"
+              class="mt-4 rounded-lg bg-brand text-white font-bold px-5 py-2 text-sm hover:bg-brand-dark transition">
+              Save preferences
+            </button>
+          </div>
+
+          <div class="border-t border-gray-100 pt-5">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Backup &amp; Archive</p>
+            <div id="prefBackupInfo" class="text-xs text-gray-600 space-y-1 mb-3"></div>
+            <div class="flex flex-wrap gap-2">
+              <button id="prefBackupBtn" type="button"
+                class="rounded-lg bg-brand text-white font-bold px-4 py-2 text-xs hover:bg-brand-dark transition">Back up now</button>
+              <button id="prefDownloadBtn" type="button"
+                class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-xs hover:bg-gray-50 transition">Download backup</button>
+              <button id="prefRestoreBtn" type="button"
+                class="rounded-lg bg-red-50 border border-red-200 text-red-700 font-semibold px-4 py-2 text-xs hover:bg-red-100 transition">Restore&hellip;</button>
+              <button id="prefArchiveDoneBtn" type="button"
+                class="rounded-lg bg-amber-600 text-white font-bold px-4 py-2 text-xs hover:bg-amber-700 transition">Mark monthly archive done</button>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-100 pt-5">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">System status &amp; storage</p>
+              <button id="prefStatusBtn" type="button"
+                class="rounded-lg bg-white border border-gray-300 font-semibold px-3 py-1.5 text-xs hover:bg-gray-50 transition">Refresh</button>
+            </div>
+            <div id="prefStatusBody" class="text-xs text-gray-600">Click Refresh to load system status.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="aboutModal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/60" id="aboutBackdrop"></div>
+    <div class="relative z-10 min-h-full flex items-center justify-center p-4">
+      <div class="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 bg-brand text-white">
+          <h2 class="text-lg font-bold">About the system</h2>
+          <button id="aboutClose" type="button" aria-label="Close"
+            class="h-9 w-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition text-xl font-semibold">&times;</button>
+        </div>
+        <div class="px-6 py-5" id="aboutBody"></div>
       </div>
     </div>
   </div>
@@ -385,6 +509,8 @@
       document.getElementById("logoutBtn").classList.remove("hidden");
       document.getElementById("accountsLink").classList.remove("hidden");
       document.getElementById("logsLink").classList.remove("hidden");
+      document.getElementById("prefsLink").classList.remove("hidden");
+      document.getElementById("aboutLink").classList.remove("hidden");
       document.getElementById("loginUser").classList.remove("hidden");
       document.getElementById("loginUser").innerHTML = "Signed in as <b>" + esc(user.username) + "</b>" +
         (user.role === "superadmin"
@@ -402,6 +528,8 @@
       document.getElementById("logoutBtn").classList.add("hidden");
       document.getElementById("accountsLink").classList.add("hidden");
       document.getElementById("logsLink").classList.add("hidden");
+      document.getElementById("prefsLink").classList.add("hidden");
+      document.getElementById("aboutLink").classList.add("hidden");
       document.getElementById("loginUser").classList.add("hidden");
       document.getElementById("bellBtn").classList.add("hidden");
       document.getElementById("bellPanel").classList.add("hidden");
@@ -602,7 +730,10 @@
               return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + ">" + s + "</option>";
             }).join("") +
             "</select></td>" +
-            '<td class="px-4 py-3"><button type="button" data-id="' + t.id + '" class="save-btn hidden rounded-lg bg-brand text-white font-bold px-3 py-1 text-xs hover:bg-brand-dark transition">Save</button></td>' +
+            '<td class="px-4 py-3"><button type="button" data-id="' + t.id + '" class="save-btn hidden rounded-lg bg-brand text-white font-bold px-3 py-1 text-xs hover:bg-brand-dark transition">Save</button>' +
+            (t.status === "Resolved"
+              ? ' <button type="button" data-id="' + t.id + '" class="archive-btn rounded-lg bg-amber-600 text-white font-bold px-3 py-1 text-xs hover:bg-amber-700 transition">Archive</button>'
+              : "") + '</td>' +
             "</tr>";
         }).join("");
       }
@@ -651,9 +782,17 @@
           document.getElementById("mEvidenceLink").href = data.ticket.evidence_file_url;
           var size = data.ticket.evidence_size ? " · " + fmtSize(data.ticket.evidence_size) : "";
           document.getElementById("mEvidenceMeta").textContent = (data.ticket.evidence_mime || "") + size;
+          var thumb = document.getElementById("mEvidenceThumb");
+          if (data.ticket.evidence_thumbnail_url) {
+            thumb.src = data.ticket.evidence_thumbnail_url;
+            thumb.classList.remove("hidden");
+          } else {
+            thumb.classList.add("hidden");
+          }
           evWrap.classList.remove("hidden");
         } else {
           evWrap.classList.add("hidden");
+          document.getElementById("mEvidenceThumb").classList.add("hidden");
         }
         document.getElementById("mDescription").textContent = data.ticket.description;
         document.getElementById("emailToInput").value = "";
@@ -795,16 +934,321 @@
     });
 
     document.getElementById("ticketsBody").addEventListener("click", function (e) {
-      if (!e.target.classList.contains("save-btn")) return;
-      var id = e.target.dataset.id;
-      var sel = document.querySelector('.status-select[data-id="' + e.target.dataset.id + '"]');
-      api("/api/admin/tickets/" + id, "PATCH", { status: sel.value }).then(function () {
-        toast("Status updated.", true);
-        e.target.classList.add("hidden");
-        loadStats();
-      }).catch(function (err) {
-        if (err.message === "unauthorized") showLogin("Session expired. Sign in again.");
-        else toast(err.message, false);
+      if (e.target.classList.contains("save-btn")) {
+        var id = e.target.dataset.id;
+        var sel = document.querySelector('.status-select[data-id="' + id + '"]');
+        askPassword(
+          "Confirm status change",
+          "You are changing the status of this ticket to " + (sel ? sel.value : "") +
+            ". Enter your password to confirm.",
+          function (password) {
+            return api("/api/admin/tickets/" + id, "PATCH", { status: sel.value, password: password })
+              .then(function () {
+                toast("Status updated.", true);
+                var btn = document.querySelector('.save-btn[data-id="' + id + '"]');
+                if (btn) btn.classList.add("hidden");
+                loadStats();
+              });
+          }
+        );
+        return;
+      }
+      if (e.target.classList.contains("archive-btn")) {
+        var id = e.target.dataset.id;
+        askPassword(
+          "Archive ticket",
+          "This moves the ticket to the archive and saves copies to Google Drive. Enter your password to confirm.",
+          function (password) {
+            return api("/api/admin/tickets/" + id).then(function (data) {
+              var t = data.ticket;
+              if (t.status !== "Resolved") throw new Error("Only Resolved tickets can be archived.");
+              return new Promise(function (resolve, reject) {
+                getIntakePdfBase64(t, function (base64) {
+                  api("/api/admin/tickets/" + id + "/archive", "POST", { password: password, pdfBase64: base64 })
+                    .then(function (d) {
+                      toast(d.message || "Ticket archived.", true);
+                      loadAll();
+                      resolve();
+                    })
+                    .catch(reject);
+                });
+              });
+            });
+          }
+        );
+        return;
+      }
+    });
+
+    var pendingPasswordAction = null;
+
+    function askPassword(title, desc, run) {
+      pendingPasswordAction = run;
+      document.getElementById("passwordModalTitle").textContent = title;
+      document.getElementById("passwordModalDesc").textContent = desc;
+      var err = document.getElementById("passwordError");
+      err.classList.add("hidden");
+      var inp = document.getElementById("passwordInput");
+      inp.value = "";
+      document.getElementById("passwordModal").classList.remove("hidden");
+      setTimeout(function () { inp.focus(); }, 50);
+    }
+
+    function closePasswordModal() {
+      document.getElementById("passwordModal").classList.add("hidden");
+      pendingPasswordAction = null;
+    }
+
+    document.getElementById("passwordConfirm").addEventListener("click", function () {
+      var inp = document.getElementById("passwordInput");
+      var btn = this;
+      var err = document.getElementById("passwordError");
+      if (!inp.value) {
+        err.textContent = "Enter your password.";
+        err.classList.remove("hidden");
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "…";
+      Promise.resolve()
+        .then(function () { return pendingPasswordAction(inp.value); })
+        .then(function () { closePasswordModal(); })
+        .catch(function (e) {
+          if (e && e.message === "unauthorized") {
+            closePasswordModal();
+            showLogin("Session expired. Sign in again.");
+            return;
+          }
+          err.textContent = (e && e.message) || "Action failed.";
+          err.classList.remove("hidden");
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = "Confirm";
+        });
+    });
+    document.getElementById("passwordCancel").addEventListener("click", closePasswordModal);
+    document.getElementById("passwordClose").addEventListener("click", closePasswordModal);
+    document.getElementById("passwordBackdrop").addEventListener("click", closePasswordModal);
+    document.getElementById("passwordInput").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") document.getElementById("passwordConfirm").click();
+    });
+
+    document.getElementById("savePdfBtn").addEventListener("click", function () {
+      if (!currentTicket) return;
+      var btn = this;
+      var hint = document.getElementById("emailHint");
+      btn.disabled = true;
+      hint.textContent = "Generating PDF and uploading…";
+      hint.classList.remove("hidden");
+      getIntakePdfBase64(currentTicket, function (base64) {
+        api("/api/admin/tickets/" + currentTicket.id + "/intake-archive", "POST", { pdfBase64: base64 })
+          .then(function (d) {
+            hint.classList.add("hidden");
+            toast(d.message || "PDF saved to Google Drive.", true);
+          })
+          .catch(function (err) {
+            hint.classList.add("hidden");
+            if (err.message === "unauthorized") showLogin("Session expired. Sign in again.");
+            else toast(err.message, false);
+          })
+          .finally(function () { btn.disabled = false; });
+      });
+    });
+
+    document.getElementById("prefsLink").addEventListener("click", openPrefs);
+    document.getElementById("aboutLink").addEventListener("click", openAbout);
+    document.getElementById("prefsClose").addEventListener("click", function () {
+      document.getElementById("prefsModal").classList.add("hidden");
+    });
+    document.getElementById("prefsBackdrop").addEventListener("click", function () {
+      document.getElementById("prefsModal").classList.add("hidden");
+    });
+    document.getElementById("aboutClose").addEventListener("click", function () {
+      document.getElementById("aboutModal").classList.add("hidden");
+    });
+    document.getElementById("aboutBackdrop").addEventListener("click", function () {
+      document.getElementById("aboutModal").classList.add("hidden");
+    });
+
+    function setPrefChecked(id, on) {
+      var el = document.getElementById(id);
+      if (el) el.checked = on;
+    }
+
+    function loadPreferences() {
+      api("/api/admin/preferences").then(function (d) {
+        var p = d.preferences || {};
+        setPrefChecked("pref_notifications", p.email_notifications !== "0");
+        setPrefChecked("pref_confirmation", p.confirmation_email !== "0");
+        setPrefChecked("pref_anonymous", p.anonymous_allowed !== "0");
+        setPrefChecked("pref_evidence", p.evidence_required === "1");
+        setPrefChecked("pref_archiveToDrive", p.archive_to_drive !== "0");
+        var title = document.getElementById("pref_portalTitle");
+        if (title) title.value = p.portal_title || "DPAD Portal";
+      }).catch(function (e) {
+        toast(e.message || "Failed to load preferences.", false);
+      });
+    }
+
+    function loadBackupInfo() {
+      var box = document.getElementById("prefBackupInfo");
+      api("/api/admin/backup").then(function (d) {
+        var last = d.lastBackup ? new Date(d.lastBackup).toLocaleString() : "never";
+        box.innerHTML = "<p>Last backup: <b>" + esc(last) + "</b> (" + d.backupCount + " snapshots)</p>"
+          + "<p>Auto: every Sunday 03:00 UTC &middot; keeps the last 12 snapshots &middot; copies to Google Drive</p>";
+      }).catch(function () {
+        box.innerHTML = '<p class="text-red-600">Could not load backup info.</p>';
+      });
+    }
+
+    function openPrefs() {
+      document.getElementById("prefsModal").classList.remove("hidden");
+      loadPreferences();
+      loadBackupInfo();
+    }
+
+    function openAbout() {
+      document.getElementById("aboutModal").classList.remove("hidden");
+      document.getElementById("aboutBody").innerHTML =
+        '<p class="text-gray-500 text-sm">Loading…</p>';
+      api("/api/admin/about").then(function (d) {
+        var a = d.about;
+        var html = '<p class="text-xl font-bold text-gray-800">' + esc(a.name) + "</p>"
+          + '<p class="text-sm text-gray-500 mb-3">Version ' + esc(a.version) + "</p>"
+          + '<p class="text-sm text-gray-700 leading-relaxed mb-3">' + esc(a.description) + "</p>";
+        html += '<p class="text-xs font-bold text-gray-500 uppercase mb-1">Stack &amp; automation</p>'
+          + "<ul class='text-xs text-gray-600 list-disc ml-4 mb-3'>"
+          + a.stack.map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("")
+          + "</ul>"
+          + '<p class="text-xs text-gray-600 mb-1">Automated backup cron (UTC): <b>' + esc(a.cron) + "</b></p>"
+          + '<p class="text-xs text-gray-600 mb-3">Last email sent: <b>' + (a.lastEmail ? esc(String(a.lastEmail).slice(0, 16)) : "&mdash;") + "</b> &middot; Last backup: <b>" + (a.lastBackup ? esc(String(a.lastBackup).slice(0, 16)) : "&mdash;") + "</b></p>";
+        html += '<p class="text-xs font-bold text-gray-500 uppercase mb-1">Compliance</p>'
+          + "<ul class='text-xs text-gray-600 list-disc ml-4'>"
+          + a.compliance.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
+          + "</ul>";
+        document.getElementById("aboutBody").innerHTML = html;
+      }).catch(function (e) {
+        document.getElementById("aboutBody").innerHTML =
+          '<p class="text-red-600 text-sm">' + esc(e.message || "Failed to load system info.") + "</p>";
+      });
+    }
+
+    document.getElementById("prefSaveBtn").addEventListener("click", function () {
+      var btn = this;
+      btn.disabled = true;
+      api("/api/admin/preferences", "PUT", {
+        email_notifications: document.getElementById("pref_notifications").checked ? "1" : "0",
+        confirmation_email: document.getElementById("pref_confirmation").checked ? "1" : "0",
+        anonymous_allowed: document.getElementById("pref_anonymous").checked ? "1" : "0",
+        evidence_required: document.getElementById("pref_evidence").checked ? "1" : "0",
+        archive_to_drive: document.getElementById("pref_archiveToDrive").checked ? "1" : "0",
+        portal_title: document.getElementById("pref_portalTitle").value.trim()
+      }).then(function (d) {
+        toast(d.message || "Preferences saved.", true);
+      }).catch(function (e) {
+        toast(e.message || "Failed to save preferences.", false);
+      }).finally(function () {
+        btn.disabled = false;
+      });
+    });
+
+    document.getElementById("prefBackupBtn").addEventListener("click", function () {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = "Backing up…";
+      api("/api/admin/backup", "POST", { reason: "manual backup" }).then(function (d) {
+        toast("Backup created: " + d.snapshot.id.slice(11, 19), true);
+        loadBackupInfo();
+      }).catch(function (e) {
+        toast(e.message || "Backup failed.", false);
+      }).finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Back up now";
+      });
+    });
+
+    document.getElementById("prefDownloadBtn").addEventListener("click", function () {
+      fetch("/api/admin/backup/download", { headers: authHeaders() })
+        .then(function (res) {
+          if (!res.ok) throw new Error("Download failed.");
+          return res.blob();
+        })
+        .then(function (blob) {
+          var a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "dpac-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+        })
+        .catch(function (e) { toast(e.message || "Download failed.", false); });
+    });
+
+    document.getElementById("prefRestoreBtn").addEventListener("click", openRestoreModal);
+
+    document.getElementById("prefArchiveDoneBtn").addEventListener("click", function () {
+      var btn = this;
+      btn.disabled = true;
+      api("/api/admin/archive", "POST").then(function () {
+        toast("Archiving acknowledged. Reminder will return in 28 days.", true);
+      }).catch(function (e) {
+        toast(e.message || "Failed.", false);
+      }).finally(function () {
+        btn.disabled = false;
+      });
+    });
+
+    document.getElementById("prefStatusBtn").addEventListener("click", function () {
+      var btn = this;
+      var body = document.getElementById("prefStatusBody");
+      btn.disabled = true;
+      btn.textContent = "Loading…";
+      body.innerHTML = '<p class="text-gray-500">Loading system status…</p>';
+      api("/api/admin/system-status").then(function (d) {
+        var s = d.status;
+        var html = "";
+        html += '<p class="font-bold text-gray-700 mb-1">Database (D1)</p>';
+        html += '<p>Storage used: <b>' + fmtSize(s.d1.bytes) + "</b></p>";
+        html += '<p class="ml-2">&middot; Tickets: ' + s.d1.tickets + " rows</p>";
+        html += '<p class="ml-2">&middot; Archived: ' + s.d1.archived + " rows</p>";
+        html += '<p class="ml-2">&middot; Activity log: ' + s.d1.activityLog + " rows</p>";
+        html += '<p class="ml-2">&middot; Accounts: ' + s.d1.accounts + " rows</p>";
+
+        html += '<p class="font-bold text-gray-700 mt-3 mb-1">Cache &amp; queue (KV) &mdash; ' + s.kv.total + " keys</p>";
+        s.kv.byPrefix.forEach(function (k) {
+          html += '<p class="ml-2">&middot; ' + esc(k.prefix) + ": " + k.count + " keys</p>";
+        });
+
+        html += '<p class="font-bold text-gray-700 mt-3 mb-1">Google Drive</p>';
+        if (!s.drive) {
+          html += '<p>Archiving to Drive is disabled in preferences.</p>';
+        } else if (!s.drive.connected) {
+          html += '<p class="text-red-600">Drive is not connected.</p>';
+        } else {
+          html += '<p>Connected' + (s.drive.accountEmail ? " as <b>" + esc(s.drive.accountEmail) + "</b>" : "") + "</p>";
+          if (s.drive.quotaLimitBytes) {
+            html += '<p>Storage: <b>' + fmtSize(s.drive.quotaUsedBytes || 0) + "</b> of " + fmtSize(s.drive.quotaLimitBytes) + "</p>";
+          } else {
+            html += "<p>Storage: <b>" + fmtSize(s.drive.quotaUsedBytes || 0) + "</b></p>";
+          }
+          s.drive.folders.forEach(function (f) {
+            var label = f.bytes ? " &middot; " + fmtSize(f.bytes) : "";
+            html += '<p class="ml-2">&middot; ' + esc(f.name) + ": " + (f.count >= 0 ? f.count + " files" + label : "n/a") + "</p>";
+          });
+        }
+
+        html += '<p class="font-bold text-gray-700 mt-3 mb-1">Email (SMTP)</p>';
+        html += "<p>" + (s.smtp.configured ? "Configured" : "Not configured")
+          + (s.smtp.lastEmail ? " &middot; last sent: " + esc(String(s.smtp.lastEmail).slice(0, 16)) : "") + "</p>";
+
+        body.innerHTML = html;
+      }).catch(function (e) {
+        body.innerHTML = '<p class="text-red-600">' + esc(e.message || "Failed to load system status.") + "</p>";
+      }).finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Refresh";
       });
     });
 
@@ -913,7 +1357,7 @@
     }
 
     function renderNotifications(d) {
-      var count = d.recentSubmissions.count + (d.archiveDue ? 1 : 0);
+      var count = d.recentSubmissions.count;
       var badge = document.getElementById("bellBadge");
       badge.textContent = count > 9 ? "9+" : String(count);
       badge.classList.toggle("hidden", count === 0);
@@ -935,27 +1379,6 @@
       }
       html += "</div>";
 
-      if (d.archiveDue) {
-        html += '<div class="px-4 py-3 bg-amber-50">'
-          + '<p class="text-xs font-bold text-amber-800 uppercase mb-1">Archive reminder</p>'
-          + '<p class="text-xs text-amber-700 mb-2">Monthly archive reminder: please archive the data before the bi-annual cleanup.</p>'
-          + (d.lastArchive ? '<p class="text-[11px] text-amber-600 mb-2">Last archived: ' + esc(String(d.lastArchive).slice(0, 10)) + "</p>" : "")
-          + '<button id="archiveDoneBtn" type="button" class="rounded-lg bg-amber-600 text-white font-bold px-3 py-1.5 text-xs hover:bg-amber-700 transition">I archived data</button>'
-          + "</div>";
-      }
-
-      if (currentUser && currentUser.role === "superadmin") {
-        html += '<div class="px-4 py-3">'
-          + '<p class="text-xs font-bold text-gray-500 uppercase mb-2">Data backup &amp; restore</p>'
-          + '<p class="text-xs text-gray-600">Last auto backup: <b>' + (d.lastBackup ? esc(String(d.lastBackup).slice(0, 16)) : "&mdash;") + "</b> (" + d.backupCount + " snapshots)</p>"
-          + '<p class="text-xs text-gray-500">Auto: every Sunday 03:00 UTC &middot; keeps the last 12 snapshots</p>'
-          + '<div class="mt-2 flex flex-wrap gap-2">'
-          + '<button id="backupNowBtn" type="button" class="rounded-lg bg-brand text-white font-bold px-3 py-1.5 text-xs hover:bg-brand-dark transition">Back up now</button>'
-          + '<button id="backupDownloadBtn" type="button" class="rounded-lg bg-white border border-gray-300 font-semibold px-3 py-1.5 text-xs hover:bg-gray-50 transition">Download backup</button>'
-          + '<button id="restoreBtn" type="button" class="rounded-lg bg-red-50 border border-red-200 text-red-700 font-semibold px-3 py-1.5 text-xs hover:bg-red-100 transition">Restore&hellip;</button>'
-          + "</div></div>";
-      }
-
       document.getElementById("bellBody").innerHTML = html;
 
       var panel = document.getElementById("bellPanel");
@@ -965,54 +1388,6 @@
           if (typeof window.openTicket === "function") window.openTicket(Number(btn.dataset.notifId));
         });
       });
-      var archiveBtn = document.getElementById("archiveDoneBtn");
-      if (archiveBtn) {
-        archiveBtn.addEventListener("click", function () {
-          api("/api/admin/archive", "POST").then(function () {
-            toast("Archiving acknowledged. Reminder will return in 28 days.", true);
-            loadNotifications();
-          }).catch(function (e) { toast(e.message || "Failed.", false); });
-        });
-      }
-      var backupBtn = document.getElementById("backupNowBtn");
-      if (backupBtn) {
-        backupBtn.addEventListener("click", function () {
-          var btn = backupBtn;
-          btn.disabled = true;
-          btn.textContent = "Backing up…";
-          api("/api/admin/backup", "POST", { reason: "manual backup" }).then(function (d) {
-            toast("Backup created: " + d.snapshot.id.slice(11, 19), true);
-            loadNotifications();
-          }).catch(function (e) {
-            toast(e.message || "Backup failed.", false);
-          }).finally(function () {
-            btn.disabled = false;
-            btn.textContent = "Back up now";
-          });
-        });
-      }
-      var dlBtn = document.getElementById("backupDownloadBtn");
-      if (dlBtn) {
-        dlBtn.addEventListener("click", function () {
-          fetch("/api/admin/backup/download", { headers: authHeaders() })
-            .then(function (res) {
-              if (!res.ok) throw new Error("Download failed.");
-              return res.blob();
-            })
-            .then(function (blob) {
-              var a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = "dpac-backup-" + new Date().toISOString().slice(0, 10) + ".json";
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
-            })
-            .catch(function (e) { toast(e.message || "Download failed.", false); });
-        });
-      }
-      var restoreBtnEl = document.getElementById("restoreBtn");
-      if (restoreBtnEl) restoreBtnEl.addEventListener("click", openRestoreModal);
     }
 
     function openRestoreModal() {

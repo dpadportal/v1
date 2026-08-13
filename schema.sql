@@ -18,7 +18,9 @@ CREATE TABLE tickets (
   evidence_file_name TEXT,
   evidence_file_url TEXT,
   evidence_mime TEXT,
-  evidence_size INTEGER
+  evidence_size INTEGER,
+  evidence_thumbnail_url TEXT,
+  intake_file_url TEXT
 );
 
 CREATE INDEX idx_tickets_email ON tickets (email_address);
@@ -62,7 +64,19 @@ CREATE TABLE IF NOT EXISTS ticket_archive (
   status TEXT NOT NULL DEFAULT 'Resolved',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  archived_at TEXT NOT NULL DEFAULT (datetime('now'))
+  archived_at TEXT NOT NULL DEFAULT (datetime('now')),
+  evidence_file_name TEXT,
+  evidence_file_url TEXT,
+  evidence_mime TEXT,
+  evidence_size INTEGER,
+  evidence_thumbnail_url TEXT,
+  intake_file_url TEXT,
+  is_anonymous INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_archive_created_at ON ticket_archive (created_at);
+
+CREATE TABLE IF NOT EXISTS preferences (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
