@@ -89,7 +89,7 @@ admin.get("/tickets", async (c) => {
 
   const rows = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
-            district, school_name, nature_of_request, description, status, created_at, updated_at
+            district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous
      FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
   )
     .bind(...params, limit, offset)
@@ -120,7 +120,7 @@ admin.patch("/tickets/:id", async (c) => {
   }
 
   const row = await c.env.DB.prepare(
-    `SELECT arta_reference_no, email_address FROM tickets WHERE id = ?`
+    `SELECT arta_reference_no, email_address, is_anonymous FROM tickets WHERE id = ?`
   )
     .bind(id)
     .first();
@@ -134,12 +134,14 @@ admin.patch("/tickets/:id", async (c) => {
     .bind(status, id)
     .run();
 
-  await sendStatusUpdateEmail(
-    c.env,
-    String(row.email_address),
-    String(row.arta_reference_no),
-    status as TicketStatus
-  );
+  if (!Number(row.is_anonymous) && row.email_address) {
+    await sendStatusUpdateEmail(
+      c.env,
+      String(row.email_address),
+      String(row.arta_reference_no),
+      status as TicketStatus
+    );
+  }
 
   await logActivity(c.env, auth.user.username, "status_update", `${row.arta_reference_no} -> ${status}`, clientIp(c));
 
@@ -241,7 +243,7 @@ admin.get("/tickets/:id", async (c) => {
 
   const row = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
-            district, school_name, nature_of_request, description, status, created_at, updated_at
+            district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous
      FROM tickets WHERE id = ?`
   )
     .bind(id)

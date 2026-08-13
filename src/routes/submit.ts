@@ -40,6 +40,7 @@ interface SubmitPayload {
   cellphone_number?: unknown;
   email_address?: unknown;
   email_otp?: unknown;
+  anonymous?: unknown;
   district?: unknown;
   school_name?: unknown;
   nature_of_request?: unknown;
@@ -81,6 +82,7 @@ submit.post("/", async (c) => {
   const captchaSessionId = field("captcha_session_id");
   const captchaAnswer = field("captcha_answer");
   const consent = form ? form.get("privacy_consent") === "true" : body.privacy_consent === true;
+  const isAnonymous = form ? form.get("anonymous") === "true" : body.anonymous === true;
 
   const evidenceFile: File | null = form ? (form.get("evidence") as File | null) : null;
   let evidence: { name: string; mime: string; size: number; bytes: ArrayBuffer } | null = null;
@@ -99,9 +101,11 @@ submit.post("/", async (c) => {
     };
   }
 
-  if (!EMAIL_RE.test(email)) return c.json({ ok: false, error: "Enter a valid email address." }, 400);
-  if (email.length > MAX_LENGTHS.email) return c.json({ ok: false, error: "Email address is too long." }, 400);
-  if (!OTP_RE.test(otpCode)) return c.json({ ok: false, error: "Enter the 6-digit code sent to your email." }, 400);
+  if (!isAnonymous) {
+    if (!EMAIL_RE.test(email)) return c.json({ ok: false, error: "Enter a valid email address." }, 400);
+    if (email.length > MAX_LENGTHS.email) return c.json({ ok: false, error: "Email address is too long." }, 400);
+    if (!OTP_RE.test(otpCode)) return c.json({ ok: false, error: "Enter the 6-digit code sent to your email." }, 400);
+  }
   if (!schoolName) return c.json({ ok: false, error: "School / Paaralan is required." }, 400);
   if (schoolName.length > MAX_LENGTHS.schoolName) return c.json({ ok: false, error: "School name is too long." }, 400);
 
@@ -137,25 +141,27 @@ submit.post("/", async (c) => {
     return c.json({ ok: false, error: "Too many submissions. Please try again shortly." }, 429);
   }
 
-  const otpKey = `otp:${email}`;
-  const attemptsKey = `otp-attempts:${email}`;
-  const storedHash = await KV.get(otpKey);
-  if (!storedHash) {
-    return c.json({ ok: false, error: "No code was requested for this email, or it has expired. Request a new code." }, 400);
-  }
-  const otpHash = await sha256(`${email}:${otpCode}`);
-  if (storedHash !== otpHash) {
-    const attempts = Number((await KV.get(attemptsKey)) ?? "0") + 1;
-    if (attempts >= OTP_MAX_ATTEMPTS) {
-      await KV.delete(otpKey);
-      await KV.delete(attemptsKey);
-      return c.json({ ok: false, error: "Too many incorrect attempts. Request a new code." }, 400);
+  if (!isAnonymous) {
+    const otpKey = `otp:${email}`;
+    const attemptsKey = `otp-attempts:${email}`;
+    const storedHash = await KV.get(otpKey);
+    if (!storedHash) {
+      return c.json({ ok: false, error: "No code was requested for this email, or it has expired. Request a new code." }, 400);
     }
-    await KV.put(attemptsKey, String(attempts), { expirationTtl: 300 });
-    return c.json({ ok: false, error: "Incorrect code. Please try again." }, 400);
+    const otpHash = await sha256(`${email}:${otpCode}`);
+    if (storedHash !== otpHash) {
+      const attempts = Number((await KV.get(attemptsKey)) ?? "0") + 1;
+      if (attempts >= OTP_MAX_ATTEMPTS) {
+        await KV.delete(otpKey);
+        await KV.delete(attemptsKey);
+        return c.json({ ok: false, error: "Too many incorrect attempts. Request a new code." }, 400);
+      }
+      await KV.put(attemptsKey, String(attempts), { expirationTtl: 300 });
+      return c.json({ ok: false, error: "Incorrect code. Please try again." }, 400);
+    }
+    await KV.delete(otpKey);
+    await KV.delete(attemptsKey);
   }
-  await KV.delete(otpKey);
-  await KV.delete(attemptsKey);
 
   const captchaKey = `captcha:${captchaSessionId}`;
   const captchaStored = await KV.get(captchaKey);
@@ -174,18 +180,19 @@ submit.post("/", async (c) => {
     try {
       const result = await DB.prepare(
         `INSERT INTO tickets
-          (arta_reference_no, full_name, cellphone_number, email_address, district, school_name, nature_of_request, description, privacy_consent, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'Pending')`
+          (arta_reference_no, full_name, cellphone_number, email_address, district, school_name, nature_of_request, description, privacy_consent, is_anonymous, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'Pending')`
       )
         .bind(
           ref,
           fullName || null,
           phone,
-          email,
+          isAnonymous ? "" : email,
           district || null,
           schoolName,
           nature,
-          description
+          description,
+          isAnonymous ? 1 : 0
         )
         .run();
       if (!result.success) throw new Error("D1 insert failed.");
@@ -220,7 +227,9 @@ submit.post("/", async (c) => {
     }
   }
 
-  await sendConfirmationEmail(c.env, email, referenceNo, NATURE_LABELS[nature], description);
+  if (!isAnonymous) {
+    await sendConfirmationEmail(c.env, email, referenceNo, NATURE_LABELS[nature], description);
+  }
 
   return c.json({
     ok: true,

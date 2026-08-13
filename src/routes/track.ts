@@ -53,7 +53,7 @@ track.get("/:ref", async (c) => {
     ticket: {
       arta_reference_no: row.arta_reference_no,
       full_name: row.full_name ? maskName(String(row.full_name)) : null,
-      email_address: maskEmail(String(row.email_address)),
+      email_address: row.email_address ? maskEmail(String(row.email_address)) : null,
       nature_of_request: row.nature_of_request,
       description: row.description,
       status: row.status,
