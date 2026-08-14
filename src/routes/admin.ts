@@ -110,9 +110,9 @@ admin.get("/tickets", async (c) => {
   if (q) {
     const like = `%${escapeLike(q)}%`;
     where.push(
-      "(arta_reference_no LIKE ? ESCAPE '\\' OR full_name LIKE ? ESCAPE '\\' OR email_address LIKE ? ESCAPE '\\' OR school_name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')"
+      "(arta_reference_no LIKE ? ESCAPE '\\' OR full_name LIKE ? ESCAPE '\\' OR email_address LIKE ? ESCAPE '\\' OR school_name LIKE ? ESCAPE '\\' OR person_name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')"
     );
-    params.push(like, like, like, like, like);
+    params.push(like, like, like, like, like, like);
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
@@ -124,7 +124,7 @@ admin.get("/tickets", async (c) => {
 
   const rows = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
-            district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous,
+            district, school_name, person_name, person_position, nature_of_request, description, status, created_at, updated_at, is_anonymous,
             evidence_file_name, evidence_file_url, evidence_mime, evidence_size, evidence_thumbnail_url, intake_file_url
      FROM ${table} ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
   )
@@ -210,15 +210,15 @@ admin.get("/tickets/export", async (c) => {
   if (q) {
     const like = `%${escapeLike(q)}%`;
     where.push(
-      "(arta_reference_no LIKE ? ESCAPE '\\' OR full_name LIKE ? ESCAPE '\\' OR email_address LIKE ? ESCAPE '\\' OR school_name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')"
+      "(arta_reference_no LIKE ? ESCAPE '\\' OR full_name LIKE ? ESCAPE '\\' OR email_address LIKE ? ESCAPE '\\' OR school_name LIKE ? ESCAPE '\\' OR person_name LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')"
     );
-    params.push(like, like, like, like, like);
+    params.push(like, like, like, like, like, like);
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const rows = await c.env.DB.prepare(
     `SELECT arta_reference_no, full_name, cellphone_number, email_address,
-            district, school_name, nature_of_request, description, status, created_at, updated_at,
+            district, school_name, person_name, person_position, nature_of_request, description, status, created_at, updated_at,
             evidence_file_name, evidence_file_url
      FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT 10000`
   )
@@ -238,6 +238,8 @@ admin.get("/tickets/export", async (c) => {
     "email_address",
     "district",
     "school_name",
+    "person_name",
+    "person_position",
     "nature_of_request",
     "description",
     "status",
@@ -255,6 +257,8 @@ admin.get("/tickets/export", async (c) => {
       csvEscape(row.email_address),
       csvEscape(row.district),
       csvEscape(row.school_name),
+      csvEscape(row.person_name),
+      csvEscape(row.person_position),
       csvEscape(row.nature_of_request),
       csvEscape(row.description),
       csvEscape(row.status),
@@ -296,7 +300,7 @@ admin.get("/tickets/:id", async (c) => {
 
   const row = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
-            district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous,
+            district, school_name, person_name, person_position, nature_of_request, description, status, created_at, updated_at, is_anonymous,
             evidence_file_name, evidence_file_url, evidence_mime, evidence_size, evidence_thumbnail_url, intake_file_url
      FROM ${table} WHERE id = ?`
   )
@@ -484,11 +488,11 @@ admin.post("/tickets/:id/archive", async (c) => {
 
   await c.env.DB.prepare(
     `INSERT INTO ticket_archive
-      (arta_reference_no, full_name, cellphone_number, email_address, district, school_name, nature_of_request,
+      (arta_reference_no, full_name, cellphone_number, email_address, district, school_name, person_name, person_position, nature_of_request,
        description, privacy_consent, status, created_at, updated_at, archived_at,
        evidence_file_name, evidence_file_url, evidence_mime, evidence_size, evidence_thumbnail_url,
        intake_file_url, is_anonymous)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Resolved', ?, ?, datetime('now'),
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Resolved', ?, ?, datetime('now'),
        ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
@@ -498,6 +502,8 @@ admin.post("/tickets/:id/archive", async (c) => {
       row.email_address,
       row.district,
       row.school_name,
+      row.person_name,
+      row.person_position,
       row.nature_of_request,
       row.description,
       row.privacy_consent,

@@ -44,6 +44,8 @@ interface SubmitPayload {
   anonymous?: unknown;
   district?: unknown;
   school_name?: unknown;
+  person_name?: unknown;
+  person_position?: unknown;
   nature_of_request?: unknown;
   description?: unknown;
   captcha_session_id?: unknown;
@@ -78,6 +80,8 @@ submit.post("/", async (c) => {
   const otpCode = field("email_otp");
   const district = field("district");
   const schoolName = field("school_name");
+  const personName = field("person_name");
+  const personPosition = field("person_position");
   const rawNature = field("nature_of_request");
   const description = field("description");
   const captchaSessionId = field("captcha_session_id");
@@ -136,6 +140,8 @@ submit.post("/", async (c) => {
     }
   }
   if (district.length > MAX_LENGTHS.district) return c.json({ ok: false, error: "District is too long." }, 400);
+  if (personName.length > MAX_LENGTHS.personName) return c.json({ ok: false, error: "Person name is too long." }, 400);
+  if (personPosition.length > MAX_LENGTHS.personPosition) return c.json({ ok: false, error: "Position is too long." }, 400);
 
   if (!captchaSessionId || !captchaAnswer) {
     return c.json({ ok: false, error: "Please answer the verification question." }, 400);
@@ -189,8 +195,8 @@ submit.post("/", async (c) => {
     try {
       const result = await DB.prepare(
         `INSERT INTO tickets
-          (arta_reference_no, full_name, cellphone_number, email_address, district, school_name, nature_of_request, description, privacy_consent, is_anonymous, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'Pending')`
+          (arta_reference_no, full_name, cellphone_number, email_address, district, school_name, person_name, person_position, nature_of_request, description, privacy_consent, is_anonymous, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'Pending')`
       )
         .bind(
           ref,
@@ -199,6 +205,8 @@ submit.post("/", async (c) => {
           isAnonymous ? "" : email,
           district || null,
           schoolName,
+          personName || null,
+          personPosition || null,
           nature,
           description,
           isAnonymous ? 1 : 0

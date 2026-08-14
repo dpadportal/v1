@@ -103,7 +103,7 @@
       <div class="text-center">
         <div class="h-24"></div>
         <h1 class="text-xl font-extrabold tracking-wide">CLIENTS' FEEDBACK INTAKE SHEET</h1>
-        <p class="text-sm mt-1">DIVISION PUBLIC ASSISTANCE DESK (DPAD) Reference &amp; Action Transmittal Report</p>
+        <p class="text-sm mt-1">TUGON PUBLIC ASSISTANCE DESK (DPAD) Reference &amp; Action Transmittal Report</p>
       </div>
 
       <p class="section-title">TICKET IDENTIFICATION &amp; ENDORSEMENT DETAILS</p>
@@ -121,6 +121,8 @@
       <div class="field-row"><div class="field-label">Nature of Call or Request:</div><div class="field-value" id="fNature">—</div></div>
       <div class="field-row"><div class="field-label">District:</div><div class="field-value" id="fDistrict2">—</div></div>
       <div class="field-row"><div class="field-label">School / Office:</div><div class="field-value" id="fSchool">—</div></div>
+      <div class="field-row"><div class="field-label">Name of Person Related:</div><div class="field-value" id="fPersonName">—</div></div>
+      <div class="field-row"><div class="field-label">Position:</div><div class="field-value" id="fPersonPosition">—</div></div>
       <div class="field-row" id="fEvidenceRow" style="display:none"><div class="field-label">Evidence / Proof:</div><div class="field-value" id="fEvidence"></div></div>
       <div class="field-row"><div class="field-label">Summary of Feedback:</div><div class="field-value" id="fDescription">—</div></div>
 
@@ -164,6 +166,8 @@
       document.getElementById("fNature").textContent = NATURE_LABELS[ticket.nature_of_request] || ticket.nature_of_request;
       document.getElementById("fDistrict2").textContent = ticket.district || "—";
       document.getElementById("fSchool").textContent = ticket.school_name;
+      document.getElementById("fPersonName").textContent = ticket.person_name || "—";
+      document.getElementById("fPersonPosition").textContent = ticket.person_position || "—";
       if (ticket.evidence_file_url) {
         var ev = document.getElementById("fEvidence");
         ev.innerHTML = '<a href="' + esc(ticket.evidence_file_url) + '" target="_blank" rel="noopener" class="underline text-brand">'

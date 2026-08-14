@@ -163,7 +163,7 @@
   <main class="hero-bg relative min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden">
 
     <div class="relative z-10 max-w-3xl flex flex-col items-center">
-      <h1 class="font-script italic text-3xl sm:text-4xl md:text-6xl hero-glow leading-tight" data-i18n="hero.heading">
+      <h1 class="font-script italic whitespace-normal sm:whitespace-nowrap text-base sm:text-[21px] md:text-[25px] lg:text-[27px] hero-glow leading-tight" data-i18n="hero.heading">
         Tapat na Ugnayan, Gawa para sa Oportunidad ng Novo Ecijano
       </h1>
 
@@ -308,6 +308,16 @@
               <label for="school_name" class="block text-sm font-semibold text-gray-700" data-i18n="form.school">School / Office (related to your concern) *</label>
               <input id="school_name" name="school_name" type="text" required maxlength="200"
                 placeholder="e.g. Nueva Ecija High School"
+                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
+            </div>
+            <div>
+              <label for="person_name" class="block text-sm font-semibold text-gray-700" data-i18n="form.personName">Name of Person Related to the Issue (optional)</label>
+              <input id="person_name" name="person_name" type="text" maxlength="150"
+                class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
+            </div>
+            <div>
+              <label for="person_position" class="block text-sm font-semibold text-gray-700" data-i18n="form.personPosition">Position of Person Related to the Issue (optional)</label>
+              <input id="person_position" name="person_position" type="text" maxlength="150"
                 class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
             </div>
           </div>
@@ -502,6 +512,8 @@
           "form.selectDistrict": "Select district / division",
           "form.other": "Other",
           "form.school": "School / Office (related to your concern) *",
+          "form.personName": "Name of Person Related to the Issue (optional)",
+          "form.personPosition": "Position of Person Related to the Issue (optional)",
           "form.nature": "Nature of Concern *",
           "form.selectNature": "Select one",
           "form.natureComplaint": "Complaint",
@@ -561,6 +573,8 @@
           "form.selectDistrict": "Pumili ng distrito / dibisyon",
           "form.other": "Iba pa",
           "form.school": "Paaralan / Opisina (may kaugnayan sa iyong isyu) *",
+          "form.personName": "Pangalan ng Taong Kaugnay sa Isyu (opsyonal)",
+          "form.personPosition": "Posisyon ng Taong Kaugnay sa Isyu (opsyonal)",
           "form.nature": "Uri ng Isyu *",
           "form.selectNature": "Pumili ng isa",
           "form.natureComplaint": "Reklamo (Complaint)",

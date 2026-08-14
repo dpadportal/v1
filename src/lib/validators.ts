@@ -9,6 +9,8 @@ export const MAX_LENGTHS = {
   email: 200,
   district: 100,
   schoolName: 200,
+  personName: 150,
+  personPosition: 150,
   description: 4000,
 } as const;
 
