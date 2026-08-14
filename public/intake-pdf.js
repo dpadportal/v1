@@ -15,10 +15,6 @@ function intakeSection(title) {
   return { text: title, style: "sectionTitle" };
 }
 
-function intakeDivider() {
-  return { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.6, lineColor: "#999999" }], margin: [0, 4, 0, 10] };
-}
-
 function buildIntakeDoc(t) {
   var nature = INTAKE_NATURE_LABELS[t.nature_of_request] || t.nature_of_request;
   var date = String(t.created_at || "").slice(0, 16);
@@ -41,8 +37,6 @@ function buildIntakeDoc(t) {
       };
     },
     styles: {
-      orgHeader: { fontSize: 10, alignment: "center", margin: [0, 0, 0, 1] },
-      orgHeaderBold: { fontSize: 11, bold: true, alignment: "center", margin: [0, 0, 0, 1] },
       docTitle: { fontSize: 12, bold: true, alignment: "center", margin: [0, 6, 0, 2] },
       docSubtitle: { fontSize: 9.5, alignment: "center", margin: [0, 0, 0, 10] },
       sectionTitle: { fontSize: 10, bold: true, margin: [0, 10, 0, 6], color: "#1d4518" },
@@ -52,11 +46,7 @@ function buildIntakeDoc(t) {
       disposition: { fontSize: 10, margin: [4, 4, 4, 4] },
     },
     content: [
-      { text: "Republic of the Philippines", style: "orgHeader" },
-      { text: "Department of Education", style: "orgHeader" },
-      { text: "SCHOOLS DIVISION OF NUEVA ECIJA", style: "orgHeaderBold" },
-      { text: "DIVISION PUBLIC ASSISTANCE COMMITTEE (DPAD) PORTAL", style: "orgHeaderBold" },
-      intakeDivider(),
+      { text: "", margin: [0, 20, 0, 34] },
       { text: "CLIENTS' FEEDBACK INTAKE SHEET", style: "docTitle" },
       { text: "DIVISION PUBLIC ASSISTANCE DESK (DPAD) Reference & Action Transmittal Report", style: "docSubtitle" },
 
