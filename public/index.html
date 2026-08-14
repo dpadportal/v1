@@ -57,6 +57,11 @@
       -webkit-text-stroke-width: 2px;
       text-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 24px rgba(255, 255, 255, 0.7);
     }
+    .acronym-letter {
+      font-size: 200%;
+      display: inline-block;
+      line-height: 1.35;
+    }
     .modal-open { overflow: hidden; }
     .error-text { color: #dc2626; font-size: 0.8rem; margin-top: 0.25rem; }
     .btn-stroke {
@@ -163,7 +168,7 @@
   <main class="hero-bg relative min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden">
 
     <div class="relative z-10 max-w-3xl flex flex-col items-center">
-      <h1 class="font-script italic whitespace-normal sm:whitespace-nowrap text-base sm:text-[21px] md:text-[25px] lg:text-[27px] hero-glow leading-tight" data-i18n="hero.heading">
+      <h1 class="font-script italic whitespace-normal sm:whitespace-nowrap text-base sm:text-[19px] md:text-[23px] lg:text-[24px] hero-glow leading-tight" data-i18n="hero.heading">
         Tapat na Ugnayan, Gawa para sa Oportunidad ng Novo Ecijano
       </h1>
 
@@ -624,6 +629,17 @@
             var parts = el.textContent.split(" ");
             parts[0] = '<span class="tugon-emph">' + parts[0] + "</span>";
             el.innerHTML = parts.join(" ");
+          }
+          if (key === "hero.heading") {
+            var acronymTargets = ["Tapat", "Ugnayan", "Gawa", "Oportunidad", "Novo"];
+            el.innerHTML = el.textContent.split(/(\s+)/).map(function (w) {
+              for (var a = 0; a < acronymTargets.length; a++) {
+                if (w === acronymTargets[a]) {
+                  return '<span class="acronym-letter">' + w[0] + "</span>" + w.slice(1);
+                }
+              }
+              return w;
+            }).join("");
           }
         });
         document.title = t("hero.heading") + " | ARTA Desk";
