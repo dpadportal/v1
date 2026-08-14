@@ -167,16 +167,16 @@
         <table class="w-full text-sm">
           <thead>
             <tr class="bg-gray-50 text-left text-gray-600 uppercase text-xs tracking-wide">
-              <th class="px-4 py-3">Reference</th>
-              <th class="px-4 py-3">Received</th>
-              <th class="px-4 py-3">Name</th>
-              <th class="px-4 py-3 hidden lg:table-cell">Email</th>
-              <th class="px-4 py-3 hidden lg:table-cell">School / Office</th>
-              <th class="px-4 py-3 hidden md:table-cell">District</th>
-              <th class="px-4 py-3">Nature</th>
-              <th class="px-4 py-3 hidden xl:table-cell">Description</th>
-              <th class="px-4 py-3">Status</th>
-              <th class="px-4 py-3"></th>
+              <th class="px-3 py-3">Reference</th>
+              <th class="px-3 py-3">Received</th>
+              <th class="px-3 py-3">Name</th>
+              <th class="px-3 py-3 hidden lg:table-cell max-w-[180px]">Email</th>
+              <th class="px-3 py-3 hidden lg:table-cell">School / Office</th>
+              <th class="px-3 py-3 hidden md:table-cell">District</th>
+              <th class="px-3 py-3">Nature</th>
+              <th class="px-3 py-3 hidden xl:table-cell">Description</th>
+              <th class="px-3 py-3">Status</th>
+              <th class="px-3 py-3"></th>
             </tr>
           </thead>
           <tbody id="ticketsBody"></tbody>
@@ -716,21 +716,21 @@
         document.getElementById("emptyState").classList.add("hidden");
         tbody.innerHTML = rows.map(function (t) {
           return '<tr class="border-t border-gray-100 hover:bg-brand/5 cursor-pointer align-top" onclick="rowClick(event, ' + t.id + ')">' +
-            '<td class="px-4 py-3 font-mono text-xs font-semibold text-brand">' + esc(t.arta_reference_no) + "</td>" +
-            '<td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">' + esc((t.created_at || "").slice(0, 16)) + "</td>" +
-            '<td class="px-4 py-3">' + (Number(t.is_anonymous) ? '<span class="inline-block rounded-full bg-gray-200 text-gray-500 font-semibold text-[11px] px-2 py-0.5">Anonymous</span>' : esc(t.full_name || "—")) + "</td>" +
-            '<td class="px-4 py-3 text-xs hidden lg:table-cell">' + (Number(t.is_anonymous) ? '<span class="text-gray-300">&mdash;</span>' : esc(t.email_address)) + "</td>" +
-            '<td class="px-4 py-3 text-xs hidden lg:table-cell">' + esc(t.school_name) + "</td>" +
-            '<td class="px-4 py-3 text-xs hidden md:table-cell">' + esc(t.district || "—") + "</td>" +
-            '<td class="px-4 py-3 text-xs">' + esc(NATURE_LABELS[t.nature_of_request] || t.nature_of_request) + "</td>" +
-            '<td class="px-4 py-3 text-xs max-w-[220px] truncate hidden xl:table-cell" title="' + esc(t.description) + '">' + esc((t.description || "").slice(0, 90)) + (t.description && t.description.length > 90 ? "…" : "") + "</td>" +
-            '<td class="px-4 py-3"><select data-id="' + t.id + '" class="status-select rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold ' +
+            '<td class="px-3 py-3 font-mono text-xs font-semibold text-brand">' + esc(t.arta_reference_no) + "</td>" +
+            '<td class="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">' + esc((t.created_at || "").slice(0, 16)) + "</td>" +
+            '<td class="px-3 py-3">' + (Number(t.is_anonymous) ? '<span class="inline-block rounded-full bg-gray-200 text-gray-500 font-semibold text-[11px] px-2 py-0.5">Anonymous</span>' : esc(t.full_name || "—")) + "</td>" +
+            '<td class="px-3 py-3 text-xs hidden lg:table-cell max-w-[180px] truncate" title="' + esc(t.email_address) + '">' + (Number(t.is_anonymous) ? '<span class="text-gray-300">&mdash;</span>' : esc(t.email_address)) + "</td>" +
+            '<td class="px-3 py-3 text-xs hidden lg:table-cell">' + esc(t.school_name) + "</td>" +
+            '<td class="px-3 py-3 text-xs hidden md:table-cell">' + esc(t.district || "—") + "</td>" +
+            '<td class="px-3 py-3 text-xs">' + esc(NATURE_LABELS[t.nature_of_request] || t.nature_of_request) + "</td>" +
+            '<td class="px-3 py-3 text-xs max-w-[220px] truncate hidden xl:table-cell" title="' + esc(t.description) + '">' + esc((t.description || "").slice(0, 90)) + (t.description && t.description.length > 90 ? "…" : "") + "</td>" +
+            '<td class="px-3 py-3"><select data-id="' + t.id + '" class="status-select rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold ' +
             (STATUS_COLORS[t.status] || "") + '">' +
             ["Pending", "Under Review", "Resolved"].map(function (s) {
               return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + ">" + s + "</option>";
             }).join("") +
             "</select></td>" +
-            '<td class="px-4 py-3"><button type="button" data-id="' + t.id + '" class="save-btn hidden rounded-lg bg-brand text-white font-bold px-3 py-1 text-xs hover:bg-brand-dark transition">Save</button>' +
+            '<td class="px-3 py-3"><button type="button" data-id="' + t.id + '" class="save-btn hidden rounded-lg bg-brand text-white font-bold px-3 py-1 text-xs hover:bg-brand-dark transition">Save</button>' +
             (t.status === "Resolved"
               ? ' <button type="button" data-id="' + t.id + '" class="archive-btn rounded-lg bg-amber-600 text-white font-bold px-3 py-1 text-xs hover:bg-amber-700 transition">Archive</button>'
               : "") + '</td>' +
