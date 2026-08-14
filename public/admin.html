@@ -29,8 +29,15 @@
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 50; }
     body.admin-bg {
       background: linear-gradient(rgba(248, 250, 248, 0.9), rgba(248, 250, 248, 0.9)),
-        url("/background.jpg") no-repeat center center fixed;
+        url("/mobile.jpg") no-repeat center center fixed;
       background-size: cover;
+    }
+    @media (min-width: 768px) {
+      body.admin-bg {
+        background: linear-gradient(rgba(248, 250, 248, 0.9), rgba(248, 250, 248, 0.9)),
+          url("/desktop.jpg") no-repeat center center fixed;
+        background-size: cover;
+      }
     }
   </style>
 </head>

@@ -23,8 +23,15 @@
     body {
       font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
       background: linear-gradient(rgba(248, 250, 248, 0.92), rgba(248, 250, 248, 0.92)),
-        url("/background.jpg") no-repeat center center fixed;
+        url("/mobile.jpg") no-repeat center center fixed;
       background-size: cover;
+    }
+    @media (min-width: 768px) {
+      body {
+        background: linear-gradient(rgba(248, 250, 248, 0.92), rgba(248, 250, 248, 0.92)),
+          url("/desktop.jpg") no-repeat center center fixed;
+        background-size: cover;
+      }
     }
     .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 50; }
   </style>

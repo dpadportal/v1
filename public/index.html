@@ -32,13 +32,17 @@
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
-    .hero-video {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: -1;
+    .hero-bg {
+      background: linear-gradient(rgba(248, 250, 248, 0.4), rgba(248, 250, 248, 0.4)),
+        url("/mobile.jpg") no-repeat center center fixed;
+      background-size: cover;
+    }
+    @media (min-width: 768px) {
+      .hero-bg {
+        background: linear-gradient(rgba(248, 250, 248, 0.4), rgba(248, 250, 248, 0.4)),
+          url("/desktop.jpg") no-repeat center center fixed;
+        background-size: cover;
+      }
     }
     .glass { background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
     .stroke-dark {
@@ -151,7 +155,6 @@
 
   <!-- ============ HERO / LANDING ============ -->
   <main class="hero-bg relative min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden">
-    <video class="hero-video" src="/background.mp4" autoplay muted loop playsinline preload="auto"></video>
 
     <div class="relative z-10 max-w-3xl flex flex-col items-center">
       <h1 class="font-script italic text-3xl sm:text-4xl md:text-6xl hero-glow leading-tight" data-i18n="hero.heading">
