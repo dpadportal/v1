@@ -43,17 +43,19 @@ async function brevoSend(
   }
 
   const sender = senderInfo(env);
-  const payload = {
+  const payload: Record<string, unknown> = {
     sender: { name: sender.name, email: sender.email },
     to: [{ email: to }],
     subject,
     htmlContent: html,
-    attachment: attachments.map((a) => ({
+  };
+  if (attachments.length > 0) {
+    payload.attachment = attachments.map((a) => ({
       name: a.filename,
       content: a.base64.replace(/\s+/g, ""),
       type: a.contentType,
-    })),
-  };
+    }));
+  }
 
   try {
     const res = await fetch(BREVO_URL, {
