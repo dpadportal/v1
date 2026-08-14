@@ -111,6 +111,16 @@
       transition: transform 0.2s;
     }
     .anon-switch.on { background: #2e6b27; }
+    .anon-box {
+      border: 2px solid rgba(46, 107, 39, 0.5);
+      background: rgba(46, 107, 39, 0.08);
+    }
+    .anon-box.active {
+      background: #1d4518;
+      border-color: #1d4518;
+    }
+    .anon-box.active .anon-title { color: #ffffff; }
+    .anon-box.active .anon-hint { color: rgba(255, 255, 255, 0.8); }
     .anon-switch.on .anon-knob { transform: translateX(1.25rem); }
     .personal-fields { overflow: hidden; transition: max-height 0.35s ease-in-out; max-height: 640px; }
     .personal-fields.collapsed { max-height: 0; }
@@ -249,10 +259,10 @@ Please provide the required information to process your feedback. We will ensure
           </div>
           </div>
 
-          <div class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+          <div id="anonBox" class="anon-box flex items-center justify-between gap-3 rounded-xl px-4 py-3">
             <div>
-              <p class="text-sm font-semibold text-gray-700" data-i18n="form.anonymous">Submit Anonymously</p>
-              <p class="text-xs text-gray-500 mt-0.5" data-i18n="form.anonymousHint">No email, verification code, or personal details needed.</p>
+              <p id="anonTitle" class="anon-title text-sm font-semibold text-green-800" data-i18n="form.anonymous">Want to stay anonymous?</p>
+              <p id="anonHint" class="anon-hint text-xs text-gray-500 mt-0.5" data-i18n="form.anonymousHint">No name, no email, no code — just your feedback, fully confidential.</p>
             </div>
             <button type="button" id="anonToggle" role="switch" aria-checked="false" aria-label="Submit anonymously" class="anon-switch">
               <span class="anon-knob"></span>
@@ -505,8 +515,9 @@ Please provide the required information to process your feedback. We will ensure
           "hero.note": "Complies with RA 11032 also known as Ease of Doing Business and Efficient Government Service Delivery Act of 2018",
           "form.title": "File a Feedback",
           "form.sub": "Please provide the required information to process your feedback. We will ensure that your identity remains confidential.",
-          "form.anonymous": "Submit Anonymously",
-          "form.anonymousHint": "No email, verification code, or personal details needed.",
+          "form.anonymous": "Want to stay anonymous?",
+          "form.anonymousHint": "No name, no email, no code — just your feedback, fully confidential.",
+          "form.anonymousOn": "You're anonymous. Only your feedback will be recorded.",
           "form.anonymousNote": "Your identity stays completely hidden — no email, verification code, or personal details required.",
           "form.fullName": "Full Name (optional)",
           "form.cellphone": "Cellphone Number (optional)",
@@ -566,8 +577,9 @@ Please provide the required information to process your feedback. We will ensure
           "hero.note": "Sumusunod sa RA 11032 na kilala rin bilang Ease of Doing Business and Efficient Government Service Delivery Act of 2018",
           "form.title": "Magsumite ng Reklamo, Komento, o Kahilingan",
           "form.sub": "Ilagay ang mga kinakailangang detalye upang maiproseso ang iyong feedback. Sisiguraduhin naming mananatiling kumpidensyal ang iyong pagkakakilanlan.",
-          "form.anonymous": "Mag-submit nang Hindi Kilala",
-          "form.anonymousHint": "Hindi kinakailangan ang email, verification code, o personal na detalye.",
+          "form.anonymous": "Ayaw mo bang magpakilala?",
+          "form.anonymousHint": "Walang pangalan, walang email, walang code — ang iyong feedback lang, pribado at kumpidensyal.",
+          "form.anonymousOn": "Anonimo ka na. Ang iyong feedback lang ang irerecord namin.",
           "form.anonymousNote": "Mananatiling lubos na pribado ang iyong pagkakakilanlan — hindi kinakailangan ang email, verification code, o personal na detalye.",
           "form.fullName": "Buong Pangalan (opsyonal)",
           "form.cellphone": "Numero ng Cellphone (opsyonal)",
@@ -719,6 +731,8 @@ Please provide the required information to process your feedback. We will ensure
       var formError = document.getElementById("formError");
       var descInput = document.getElementById("description");
       var anonToggle = document.getElementById("anonToggle");
+      var anonBox = document.getElementById("anonBox");
+      var anonHint = document.getElementById("anonHint");
       var personalFields = document.getElementById("personalFields");
       var formSubNote = document.getElementById("formSubNote");
       var successNote = document.getElementById("successNote");
@@ -772,6 +786,9 @@ Please provide the required information to process your feedback. We will ensure
         isAnon = !isAnon;
         anonToggle.classList.toggle("on", isAnon);
         anonToggle.setAttribute("aria-checked", String(isAnon));
+        anonBox.classList.toggle("active", isAnon);
+        anonHint.setAttribute("data-i18n", isAnon ? "form.anonymousOn" : "form.anonymousHint");
+        anonHint.textContent = t(isAnon ? "form.anonymousOn" : "form.anonymousHint");
         personalFields.classList.toggle("collapsed", isAnon);
         personalFields.querySelectorAll("input").forEach(function (el) {
           el.disabled = isAnon;
@@ -796,6 +813,9 @@ Please provide the required information to process your feedback. We will ensure
           isAnon = false;
           anonToggle.classList.remove("on");
           anonToggle.setAttribute("aria-checked", "false");
+          anonBox.classList.remove("active");
+          anonHint.setAttribute("data-i18n", "form.anonymousHint");
+          anonHint.textContent = t("form.anonymousHint");
           personalFields.classList.remove("collapsed");
           personalFields.querySelectorAll("input").forEach(function (el) { el.disabled = false; });
           formSubNote.setAttribute("data-i18n", "form.sub");
