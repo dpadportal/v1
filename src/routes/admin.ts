@@ -125,7 +125,7 @@ admin.get("/tickets", async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
             district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous,
-            evidence_thumbnail_url, intake_file_url
+            evidence_file_name, evidence_file_url, evidence_mime, evidence_size, evidence_thumbnail_url, intake_file_url
      FROM ${table} ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
   )
     .bind(...params, limit, offset)
@@ -297,7 +297,7 @@ admin.get("/tickets/:id", async (c) => {
   const row = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
             district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous,
-            evidence_thumbnail_url, intake_file_url
+            evidence_file_name, evidence_file_url, evidence_mime, evidence_size, evidence_thumbnail_url, intake_file_url
      FROM ${table} WHERE id = ?`
   )
     .bind(id)
