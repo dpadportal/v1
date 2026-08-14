@@ -51,6 +51,12 @@
       -webkit-text-fill-color: #1d4518;
       paint-order: stroke fill;
     }
+    .tugon-emph {
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      -webkit-text-stroke-width: 2px;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 24px rgba(255, 255, 255, 0.7);
+    }
     .modal-open { overflow: hidden; }
     .error-text { color: #dc2626; font-size: 0.8rem; margin-top: 0.25rem; }
     .btn-stroke {
@@ -146,7 +152,7 @@
         <img src="/sdo.png" alt="Logo" class="h-16 w-16 md:h-20 md:w-20 rounded-lg shadow shrink-0" />
         <div class="min-w-0">
           <p class="font-bold text-lg md:text-[31px] text-brand-dark leading-tight truncate" data-i18n="org.title">SDO Nueva Ecija</p>
-          <p class="stroke-dark uppercase text-[21px] md:text-[26px] leading-tight" data-i18n="org.sub">DPAD Portal</p>
+          <p class="stroke-dark uppercase text-[21px] md:text-[26px] leading-tight" data-i18n="org.sub">TUGON PUBLIC ASSISTANCE DESK</p>
         </div>
       </div>
       <p class="text-[10px] md:text-xs hero-glow leading-snug" data-i18n="hero.note">Complies with RA 11032 also known as Ease of Doing Business and Efficient Government Service Delivery Act of 2018</p>
@@ -158,11 +164,8 @@
 
     <div class="relative z-10 max-w-3xl flex flex-col items-center">
       <h1 class="font-script italic text-3xl sm:text-4xl md:text-6xl hero-glow leading-tight" data-i18n="hero.heading">
-        Tell us and we will act on it
+        Tapat na Ugnayan, Gawa para sa Oportunidad ng Novo Ecijano
       </h1>
-      <p class="mt-5 text-xs md:text-sm hero-sub-yellow max-w-2xl leading-relaxed" data-i18n="hero.sub">
-        Dahil gusto ka naming mapakinggan.
-      </p>
 
       <div class="mt-10 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
         <button id="openFormBtn" type="button"
@@ -449,10 +452,9 @@
       var I18N = {
         en: {
           "org.title": "SDO Nueva Ecija",
-          "org.sub": "Division Public Assistance Desk",
+          "org.sub": "TUGON PUBLIC ASSISTANCE DESK",
           "lang.en": "English", "lang.tl": "Tagalog",
-          "hero.heading": "Tell us and we will act on it",
-          "hero.sub": "Tugon sa pangangailangan, serbisyo para sa mamamayan.",
+          "hero.heading": "Tapat na Ugnayan, Gawa para sa Oportunidad ng Novo Ecijano",
           "hero.file": "Share Your Feedback",
           "hero.track": "Track Your Ticket",
           "hero.note": "Complies with RA 11032 also known as Ease of Doing Business and Efficient Government Service Delivery Act of 2018",
@@ -509,10 +511,9 @@
         },
         tl: {
           "org.title": "SDO Nueva Ecija",
-          "org.sub": "Division Public Assistance Desk",
+          "org.sub": "TUGON PUBLIC ASSISTANCE DESK",
           "lang.en": "English", "lang.tl": "Tagalog",
-          "hero.heading": "Tell us and we will act on it",
-          "hero.sub": "Tugon sa pangangailangan, serbisyo para sa mamamayan.",
+          "hero.heading": "Tapat na Ugnayan, Gawa para sa Oportunidad ng Novo Ecijano",
           "hero.file": "Ibahagi ang Iyong Feedback",
           "hero.track": "I-track ang Iyong Ticket",
           "hero.note": "Sumusunod sa RA 11032 na kilala rin bilang Ease of Doing Business and Efficient Government Service Delivery Act of 2018",
@@ -573,7 +574,13 @@
 
       function applyI18n() {
         document.querySelectorAll("[data-i18n]").forEach(function (el) {
-          el.textContent = t(el.getAttribute("data-i18n"));
+          var key = el.getAttribute("data-i18n");
+          el.textContent = t(key);
+          if (key === "org.sub") {
+            var parts = el.textContent.split(" ");
+            parts[0] = '<span class="tugon-emph">' + parts[0] + "</span>";
+            el.innerHTML = parts.join(" ");
+          }
         });
         document.title = t("hero.heading") + " | ARTA Desk";
       }
