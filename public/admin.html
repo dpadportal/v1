@@ -287,7 +287,7 @@
           </button>
           <button id="savePdfBtn" type="button"
             class="rounded-lg bg-white border border-gray-300 font-semibold px-4 py-2 text-sm hover:bg-gray-50 transition whitespace-nowrap">
-            Save PDF to Drive
+            Download a copy
           </button>
           <div class="flex-1 flex gap-2" id="emailSendWrap">
             <input id="emailToInput" type="email" placeholder="Email address to send the intake form…"
@@ -1068,21 +1068,14 @@
       var btn = this;
       var hint = document.getElementById("emailHint");
       btn.disabled = true;
-      hint.textContent = "Generating PDF and uploading…";
+      hint.textContent = "Generating PDF…";
       hint.classList.remove("hidden");
       try {
         getIntakePdfBase64(currentTicket, function (base64) {
-          api("/api/admin/tickets/" + currentTicket.id + "/intake-archive", "POST", { pdfBase64: base64 })
-            .then(function (d) {
-              hint.classList.add("hidden");
-              toast(d.message || "PDF saved to Google Drive.", true);
-            })
-            .catch(function (err) {
-              hint.classList.add("hidden");
-              if (err.message === "unauthorized") showLogin("Session expired. Sign in again.");
-              else toast(err.message, false);
-            })
-            .finally(function () { btn.disabled = false; });
+          downloadBase64Pdf(base64, "Intake-Form-" + currentTicket.arta_reference_no + ".pdf");
+          hint.classList.add("hidden");
+          toast("Intake form PDF downloaded.", true);
+          btn.disabled = false;
         });
       } catch (err) {
         hint.classList.add("hidden");
