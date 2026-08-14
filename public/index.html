@@ -217,16 +217,6 @@
           We just need your email so we can verify and update you on your concern. Name and phone are optional.
         </div>
 
-        <div class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
-          <div>
-            <p class="text-sm font-semibold text-gray-700" data-i18n="form.anonymous">Submit Anonymously</p>
-            <p class="text-xs text-gray-500 mt-0.5" data-i18n="form.anonymousHint">No email, verification code, or personal details needed.</p>
-          </div>
-          <button type="button" id="anonToggle" role="switch" aria-checked="false" aria-label="Submit anonymously" class="anon-switch">
-            <span class="anon-knob"></span>
-          </button>
-        </div>
-
         <form id="submitForm" class="px-6 py-5 space-y-4" novalidate>
           <div class="space-y-4 personal-fields" id="personalFields">
           <div class="grid md:grid-cols-2 gap-4">
@@ -256,6 +246,17 @@
               </button>
             </div>
             <p id="otpStatus" class="error-text hidden"></p>
+          </div>
+          </div>
+
+          <div class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+            <div>
+              <p class="text-sm font-semibold text-gray-700" data-i18n="form.anonymous">Submit Anonymously</p>
+              <p class="text-xs text-gray-500 mt-0.5" data-i18n="form.anonymousHint">No email, verification code, or personal details needed.</p>
+            </div>
+            <button type="button" id="anonToggle" role="switch" aria-checked="false" aria-label="Submit anonymously" class="anon-switch">
+              <span class="anon-knob"></span>
+            </button>
           </div>
 
           <div id="otpField" class="hidden">
