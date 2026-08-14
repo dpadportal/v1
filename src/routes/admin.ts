@@ -12,7 +12,7 @@ import {
   sendIntakeFormLinkEmail,
   sendStatusUpdateEmail,
 } from "../lib/email";
-import { uploadArchiveFiles, uploadExportCsv, uploadIntakePdf, getDriveStatus } from "../lib/gdrive";
+import { uploadExportCsv, uploadIntakePdf, getDriveStatus } from "../lib/gdrive";
 import { getPrefs, getPref, setPrefs, PREF_DEFAULTS } from "../lib/prefs";
 import { createSnapshot, dumpDatabase, getSnapshot, listSnapshots, restoreSnapshot } from "../lib/backup";
 
@@ -98,9 +98,12 @@ admin.get("/tickets", async (c) => {
   const limit = Math.min(Math.max(Number(c.req.query("limit")) || 50, 1), 200);
   const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
 
+  const archived = status === "archived";
+  const table = archived ? "ticket_archive" : "tickets";
+
   const where: string[] = [];
   const params: Array<string | number> = [];
-  if (status) {
+  if (!archived && status) {
     where.push("status = ?");
     params.push(status);
   }
@@ -114,7 +117,7 @@ admin.get("/tickets", async (c) => {
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const countRow = await c.env.DB.prepare(
-    `SELECT COUNT(*) AS total FROM tickets ${whereSql}`
+    `SELECT COUNT(*) AS total FROM ${table} ${whereSql}`
   )
     .bind(...params)
     .first();
@@ -123,12 +126,12 @@ admin.get("/tickets", async (c) => {
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
             district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous,
             evidence_thumbnail_url, intake_file_url
-     FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+     FROM ${table} ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
   )
     .bind(...params, limit, offset)
     .all();
 
-  return c.json({ ok: true, tickets: rows.results, total: Number(countRow?.total ?? 0) });
+  return c.json({ ok: true, archived, tickets: rows.results, total: Number(countRow?.total ?? 0) });
 });
 
 admin.patch("/tickets/:id", async (c) => {
@@ -288,11 +291,14 @@ admin.get("/tickets/:id", async (c) => {
     return c.json({ ok: false, error: "Invalid ticket id." }, 400);
   }
 
+  const archived = c.req.query("archived") === "1";
+  const table = archived ? "ticket_archive" : "tickets";
+
   const row = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
             district, school_name, nature_of_request, description, status, created_at, updated_at, is_anonymous,
             evidence_thumbnail_url, intake_file_url
-     FROM tickets WHERE id = ?`
+     FROM ${table} WHERE id = ?`
   )
     .bind(id)
     .first();
@@ -300,7 +306,7 @@ admin.get("/tickets/:id", async (c) => {
     return c.json({ ok: false, error: "Ticket not found." }, 404);
   }
 
-  return c.json({ ok: true, ticket: row });
+  return c.json({ ok: true, archived, ticket: row });
 });
 
 admin.post("/tickets/:id/email", async (c) => {
@@ -476,32 +482,6 @@ admin.post("/tickets/:id/archive", async (c) => {
     .first();
   if (existingRef) return c.json({ ok: false, error: "This ticket is already archived." }, 409);
 
-  const prefs = await getPrefs(c.env);
-  let driveUrl: string | null = null;
-  if (prefs.archive_to_drive === "1") {
-    const jsonRecord = JSON.stringify(
-      {
-        archivedAt: new Date().toISOString(),
-        ticket: row,
-        driveEvidenceLink: row.evidence_file_url ?? null,
-      },
-      null,
-      2
-    );
-    try {
-      const uploaded = await uploadArchiveFiles(
-        c.env,
-        String(row.arta_reference_no),
-        base64ToBytes(pdfBase64),
-        jsonRecord
-      );
-      driveUrl = uploaded.pdf.webViewLink;
-    } catch (err) {
-      console.error("Archive Drive upload failed:", err);
-      return c.json({ ok: false, error: "Could not save the archive to Google Drive. Please try again." }, 502);
-    }
-  }
-
   await c.env.DB.prepare(
     `INSERT INTO ticket_archive
       (arta_reference_no, full_name, cellphone_number, email_address, district, school_name, nature_of_request,
@@ -528,7 +508,7 @@ admin.post("/tickets/:id/archive", async (c) => {
       row.evidence_mime,
       row.evidence_size,
       row.evidence_thumbnail_url,
-      driveUrl,
+      null,
       row.is_anonymous
     )
     .run();
@@ -539,14 +519,13 @@ admin.post("/tickets/:id/archive", async (c) => {
     c.env,
     auth.user.username,
     "ticket_archive",
-    `${row.arta_reference_no}${driveUrl ? " -> Google Drive" : ""}`,
+    `${row.arta_reference_no} (local archive)`,
     clientIp(c)
   );
 
   return c.json({
     ok: true,
-    message: driveUrl ? "Ticket archived and saved to Google Drive." : "Ticket archived.",
-    driveUrl,
+    message: "Ticket archived. The Intake form PDF was downloaded to your device.",
   });
 });
 

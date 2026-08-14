@@ -144,6 +144,7 @@
           <option value="Pending">Pending</option>
           <option value="Under Review">Under Review</option>
           <option value="Resolved">Resolved</option>
+          <option value="archived">Archived</option>
         </select>
         <input id="searchInput" type="search" placeholder="Search reference, name, email, school, description..."
           class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
@@ -706,16 +707,33 @@
 
       var data = await api("/api/admin/tickets?" + params.toString());
       total = data.total;
+      var archived = !!data.archived;
       var tbody = document.getElementById("ticketsBody");
       var rows = data.tickets || [];
+      var emptyState = document.getElementById("emptyState");
 
       if (rows.length === 0) {
         tbody.innerHTML = "";
-        document.getElementById("emptyState").classList.remove("hidden");
+        emptyState.textContent = archived ? "No archived tickets found." : "No tickets found.";
+        emptyState.classList.remove("hidden");
       } else {
-        document.getElementById("emptyState").classList.add("hidden");
+        emptyState.classList.add("hidden");
         tbody.innerHTML = rows.map(function (t) {
-          return '<tr class="border-t border-gray-100 hover:bg-brand/5 cursor-pointer align-top" onclick="rowClick(event, ' + t.id + ')">' +
+          var statusCell = archived
+            ? '<td class="px-3 py-3"><span class="inline-block rounded-full bg-gray-200 text-gray-500 font-semibold text-[11px] px-2 py-0.5">Archived</span></td>'
+            : '<td class="px-3 py-3"><select data-id="' + t.id + '" class="status-select rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold ' +
+            (STATUS_COLORS[t.status] || "") + '">' +
+            ["Pending", "Under Review", "Resolved"].map(function (s) {
+              return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + ">" + s + "</option>";
+            }).join("") +
+            "</select></td>";
+          var actionsCell = archived
+            ? '<td class="px-3 py-3"></td>'
+            : '<td class="px-3 py-3"><button type="button" data-id="' + t.id + '" class="save-btn hidden rounded-lg bg-brand text-white font-bold px-3 py-1 text-xs hover:bg-brand-dark transition">Save</button>' +
+            (t.status === "Resolved"
+              ? ' <button type="button" data-id="' + t.id + '" class="archive-btn rounded-lg bg-amber-600 text-white font-bold px-3 py-1 text-xs hover:bg-amber-700 transition">Archive</button>'
+              : "") + '</td>';
+          return '<tr class="border-t border-gray-100 hover:bg-brand/5 cursor-pointer align-top" onclick="rowClick(event, ' + t.id + ', ' + (archived ? 1 : 0) + ')">' +
             '<td class="px-3 py-3 font-mono text-xs font-semibold text-brand">' + esc(t.arta_reference_no) + "</td>" +
             '<td class="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">' + esc((t.created_at || "").slice(0, 16)) + "</td>" +
             '<td class="px-3 py-3">' + (Number(t.is_anonymous) ? '<span class="inline-block rounded-full bg-gray-200 text-gray-500 font-semibold text-[11px] px-2 py-0.5">Anonymous</span>' : esc(t.full_name || "—")) + "</td>" +
@@ -724,22 +742,14 @@
             '<td class="px-3 py-3 text-xs hidden md:table-cell">' + esc(t.district || "—") + "</td>" +
             '<td class="px-3 py-3 text-xs">' + esc(NATURE_LABELS[t.nature_of_request] || t.nature_of_request) + "</td>" +
             '<td class="px-3 py-3 text-xs max-w-[220px] truncate hidden xl:table-cell" title="' + esc(t.description) + '">' + esc((t.description || "").slice(0, 90)) + (t.description && t.description.length > 90 ? "…" : "") + "</td>" +
-            '<td class="px-3 py-3"><select data-id="' + t.id + '" class="status-select rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold ' +
-            (STATUS_COLORS[t.status] || "") + '">' +
-            ["Pending", "Under Review", "Resolved"].map(function (s) {
-              return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + ">" + s + "</option>";
-            }).join("") +
-            "</select></td>" +
-            '<td class="px-3 py-3"><button type="button" data-id="' + t.id + '" class="save-btn hidden rounded-lg bg-brand text-white font-bold px-3 py-1 text-xs hover:bg-brand-dark transition">Save</button>' +
-            (t.status === "Resolved"
-              ? ' <button type="button" data-id="' + t.id + '" class="archive-btn rounded-lg bg-amber-600 text-white font-bold px-3 py-1 text-xs hover:bg-amber-700 transition">Archive</button>'
-              : "") + '</td>' +
+            statusCell + actionsCell +
             "</tr>";
         }).join("");
       }
 
       document.getElementById("tableMeta").textContent = "Showing " +
-        (total === 0 ? 0 : page * PAGE_SIZE + 1) + "–" + Math.min((page + 1) * PAGE_SIZE, total) + " of " + total + " tickets";
+        (total === 0 ? 0 : page * PAGE_SIZE + 1) + "–" + Math.min((page + 1) * PAGE_SIZE, total) + " of " + total +
+        (archived ? " archived tickets" : " tickets");
       document.getElementById("pageInfo").textContent = "Page " + (page + 1) +
         " of " + Math.max(1, Math.ceil(total / PAGE_SIZE));
       document.getElementById("prevBtn").disabled = page === 0;
@@ -755,14 +765,15 @@
 
     var currentTicket = null;
 
-    window.rowClick = function (e, id) {
+    window.rowClick = function (e, id, archived) {
       var t = e.target;
       if (t.closest("select") || t.closest("button") || t.closest("a")) return;
-      openTicket(id);
+      openTicket(id, archived);
     };
 
-    window.openTicket = function (id) {
-      api("/api/admin/tickets/" + id).then(function (data) {
+    window.openTicket = function (id, archived) {
+      var isArchived = !!archived;
+      api("/api/admin/tickets/" + id + (isArchived ? "?archived=1" : "")).then(function (data) {
         currentTicket = data.ticket;
         document.getElementById("ticketModalTitle").textContent = data.ticket.arta_reference_no;
         document.getElementById("ticketModalSub").textContent = "Ticket ID " + data.ticket.id;
@@ -798,7 +809,9 @@
         document.getElementById("emailToInput").value = "";
         document.getElementById("emailToInput").placeholder = "Email address to send the intake form…";
         document.getElementById("emailSendBtn").disabled = false;
-        document.getElementById("emailSendWrap").classList.toggle("hidden", isAnon);
+        document.getElementById("emailSendWrap").classList.toggle("hidden", isAnon || isArchived);
+        document.getElementById("intakeLinkBtn").classList.toggle("hidden", isArchived);
+        document.getElementById("savePdfBtn").classList.toggle("hidden", isArchived);
         document.getElementById("ticketModal").classList.remove("hidden");
         logActivity("viewed_ticket", data.ticket.arta_reference_no);
       }).catch(function (e) {
@@ -963,13 +976,14 @@
         var id = e.target.dataset.id;
         askPassword(
           "Archive ticket",
-          "This moves the ticket to the archive and saves copies to Google Drive. Enter your password to confirm.",
+          "This moves the ticket to the local archive and downloads the Intake form PDF. Enter your password to confirm.",
           function (password) {
             return api("/api/admin/tickets/" + id).then(function (data) {
               var t = data.ticket;
               if (t.status !== "Resolved") throw new Error("Only Resolved tickets can be archived.");
               return new Promise(function (resolve, reject) {
                 getIntakePdfBase64(t, function (base64) {
+                  downloadBase64Pdf(base64, "Intake-Form-" + t.arta_reference_no + ".pdf");
                   api("/api/admin/tickets/" + id + "/archive", "POST", { password: password, pdfBase64: base64 })
                     .then(function (d) {
                       toast(d.message || "Ticket archived.", true);
@@ -987,6 +1001,15 @@
     });
 
     var pendingPasswordAction = null;
+
+    function downloadBase64Pdf(base64, filename) {
+      var a = document.createElement("a");
+      a.href = "data:application/pdf;base64," + base64;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
 
     function askPassword(title, desc, run) {
       pendingPasswordAction = run;
