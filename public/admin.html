@@ -1137,77 +1137,59 @@
       Promise.all([api("/api/admin/about"), api("/api/admin/system-status")]).then(function (res) {
         var a = res[0].about;
         var s = res[1].status;
-        var stackNote = function (name) {
-          if (!s) return "";
-          if (name === "D1 (SQLite)")
-            return " &middot; " + fmtSize(s.d1.bytes) + " used &middot; " + pctOf(s.d1.bytes, s.d1.limitBytes);
-          if (name === "KV") return " &middot; " + s.kv.total + " keys";
-          if (name === "R2") {
-            if (!s.storage || !s.storage.connected) return ' &middot; <span class="text-red-600">unreachable</span>';
-            return " &middot; " + fmtSize(s.storage.quotaUsedBytes || 0) + " used &middot; " +
-              pctOf(s.storage.quotaUsedBytes || 0, s.storage.quotaLimitBytes);
-          }
-          return "";
-        };
         var html = '<p class="text-xl font-bold text-gray-800">' + esc(a.name) + "</p>"
           + '<p class="text-sm text-gray-500 mb-3">Version ' + esc(a.version) + "</p>"
           + '<p class="text-sm text-gray-700 leading-relaxed mb-3">' + esc(a.description) + "</p>";
-        html += '<p class="text-xs font-bold text-gray-500 uppercase mb-1">Stack &amp; automation</p>'
-          + "<ul class='text-xs text-gray-600 list-disc ml-4 mb-3'>"
-          + a.stack.map(function (item) { return "<li>" + esc(item) + stackNote(item) + "</li>"; }).join("")
-          + "</ul>"
-          + '<p class="text-xs text-gray-600 mb-1">Automated backup cron (UTC): <b>' + esc(a.cron) + "</b></p>"
-          + '<p class="text-xs text-gray-600 mb-3">Last email sent: <b>' + (a.lastEmail ? esc(String(a.lastEmail).slice(0, 16)) : "&mdash;") + "</b> &middot; Last backup: <b>" + (a.lastBackup ? esc(String(a.lastBackup).slice(0, 16)) : "&mdash;") + "</b></p>";
         if (s) {
-          html += '<p class="text-xs font-bold text-gray-500 uppercase mt-4 mb-1">System status</p>';
-          html += '<p class="font-bold text-gray-700 mb-1">Database (D1)</p>';
-          html += '<p>Storage used: <b>' + fmtSize(s.d1.bytes) + "</b>* of " + fmtSize(s.d1.limitBytes) +
+          html += '<p class="text-sm font-bold text-gray-500 uppercase mt-4 mb-1">System status</p>';
+          html += '<p class="text-sm font-bold text-gray-700 mb-1">Database (D1)</p>';
+          html += '<p class="text-sm">Storage used: <b>' + fmtSize(s.d1.bytes) + "</b>* of " + fmtSize(s.d1.limitBytes) +
             " (" + pctOf(s.d1.bytes, s.d1.limitBytes) + " of the free-tier threshold)</p>";
-          html += '<p class="text-gray-400">*Estimated from content length &mdash; D1 does not expose exact size.</p>';
-          html += '<p class="ml-2">&middot; Tickets: ' + s.d1.tickets + " rows</p>";
-          html += '<p class="ml-2">&middot; Archived: ' + s.d1.archived + " rows</p>";
-          html += '<p class="ml-2">&middot; Activity log: ' + s.d1.activityLog + " rows</p>";
-          html += '<p class="ml-2">&middot; Accounts: ' + s.d1.accounts + " rows</p>";
+          html += '<p class="text-sm text-gray-400">*Estimated from content length &mdash; D1 does not expose exact size.</p>';
+          html += '<p class="text-sm ml-2">&middot; Tickets: ' + s.d1.tickets + " rows</p>";
+          html += '<p class="text-sm ml-2">&middot; Archived: ' + s.d1.archived + " rows</p>";
+          html += '<p class="text-sm ml-2">&middot; Activity log: ' + s.d1.activityLog + " rows</p>";
+          html += '<p class="text-sm ml-2">&middot; Accounts: ' + s.d1.accounts + " rows</p>";
 
-          html += '<p class="font-bold text-gray-700 mt-2 mb-1">Cache &amp; queue (KV) &mdash; ' + s.kv.total + " keys</p>";
+          html += '<p class="text-sm font-bold text-gray-700 mt-2 mb-1">Cache &amp; queue (KV) &mdash; ' + s.kv.total + " keys</p>";
           s.kv.byPrefix.forEach(function (k) {
-            html += '<p class="ml-2">&middot; ' + esc(k.prefix) + ": " + k.count + " keys</p>";
+            html += '<p class="text-sm ml-2">&middot; ' + esc(k.prefix) + ": " + k.count + " keys</p>";
           });
 
-          html += '<p class="font-bold text-gray-700 mt-2 mb-1">File storage (R2)</p>';
+          html += '<p class="text-sm font-bold text-gray-700 mt-2 mb-1">File storage (R2)</p>';
           if (!s.storage) {
-            html += '<p>File archiving is disabled in preferences.</p>';
+            html += '<p class="text-sm">File archiving is disabled in preferences.</p>';
           } else if (!s.storage.connected) {
-            html += '<p class="text-red-600">File storage is not reachable.</p>';
+            html += '<p class="text-sm text-red-600">File storage is not reachable.</p>';
             if (s.storage.error) {
-              html += '<p class="text-red-500 text-[11px] break-words">' + esc(s.storage.error) + "</p>";
+              html += '<p class="text-sm text-red-500 break-words">' + esc(s.storage.error) + "</p>";
             }
           } else {
-            html += "<p>Connected</p>";
+            html += '<p class="text-sm">Connected</p>';
             if (s.storage.quotaLimitBytes) {
-              html += '<p>Storage: <b>' + fmtSize(s.storage.quotaUsedBytes || 0) + "</b> of " + fmtSize(s.storage.quotaLimitBytes) +
+              html += '<p class="text-sm">Storage: <b>' + fmtSize(s.storage.quotaUsedBytes || 0) + "</b> of " + fmtSize(s.storage.quotaLimitBytes) +
                 " (" + pctOf(s.storage.quotaUsedBytes || 0, s.storage.quotaLimitBytes) + ")</p>";
             } else {
-              html += "<p>Storage: <b>" + fmtSize(s.storage.quotaUsedBytes || 0) + "</b></p>";
+              html += '<p class="text-sm">Storage: <b>' + fmtSize(s.storage.quotaUsedBytes || 0) + "</b></p>";
             }
             s.storage.folders.forEach(function (f) {
               var label = f.bytes ? " &middot; " + fmtSize(f.bytes) : "";
-              html += '<p class="ml-2">&middot; ' + esc(f.name) + ": " + (f.count >= 0 ? f.count + " files" + label : "n/a") + "</p>";
+              html += '<p class="text-sm ml-2">&middot; ' + esc(f.name) + ": " + (f.count >= 0 ? f.count + " files" + label : "n/a") + "</p>";
             });
           }
 
-          html += '<p class="font-bold text-gray-700 mt-2 mb-1">Email (Brevo)</p>';
-          html += "<p>" + (s.email.configured ? "Configured" : "Not configured")
+          html += '<p class="text-sm font-bold text-gray-700 mt-2 mb-1">Email (Brevo)</p>';
+          html += '<p class="text-sm">' + (s.email.configured ? "Configured" : "Not configured")
             + (s.email.lastEmail ? " &middot; last sent: " + esc(String(s.email.lastEmail).slice(0, 16)) : "") + "</p>";
         } else {
-          html += '<p class="text-xs text-gray-400 mt-3 mb-2">System status unavailable.</p>';
+          html += '<p class="text-sm text-gray-400 mt-3 mb-2">System status unavailable.</p>';
         }
-        html += '<p class="text-xs font-bold text-gray-500 uppercase mt-4 mb-1">Developers</p>'
-          + "<ul class='text-xs text-gray-600 list-disc ml-4 mb-3'>"
+        html += '<p class="text-sm font-bold text-gray-500 uppercase mt-4 mb-1">Development Team</p>'
+          + "<ul class='text-sm text-gray-600 list-disc ml-4 mb-3'>"
           + a.developers.map(function (n) { return "<li>" + esc(n) + "</li>"; }).join("")
           + "</ul>";
-        html += '<p class="text-xs font-bold text-gray-500 uppercase mb-1">Compliance</p>'
-          + "<ul class='text-xs text-gray-600 list-disc ml-4'>"
+        html += '<p class="text-sm font-bold text-gray-500 uppercase mb-1">Compliance</p>'
+          + "<ul class='text-sm text-gray-600 list-disc ml-4'>"
           + a.compliance.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
           + "</ul>";
         document.getElementById("aboutBody").innerHTML = html;
