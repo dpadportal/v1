@@ -19,8 +19,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/pdfmake.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.20/vfs_fonts.js"></script>
+  <script src="/vendor/pdfmake.min.js"></script>
+  <script src="/vendor/vfs_fonts.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="/intake-pdf.js"></script>
   <style>
@@ -912,18 +912,24 @@
       btn.disabled = true;
       hint.textContent = "Generating PDF…";
       hint.classList.remove("hidden");
-      getIntakePdfBase64(currentTicket, function (base64) {
-        hint.textContent = "Sending email…";
-        api("/api/admin/tickets/" + currentTicket.id + "/email", "POST", { to: to, pdfBase64: base64 }).then(function () {
-          hint.classList.add("hidden");
-          toast("Intake form sent to " + to + ".", true);
-        }).catch(function (err) {
-          hint.classList.add("hidden");
-          btn.disabled = false;
-          if (err.message === "unauthorized") showLogin("Session expired. Sign in again.");
-          else toast(err.message, false);
+      try {
+        getIntakePdfBase64(currentTicket, function (base64) {
+          hint.textContent = "Sending email…";
+          api("/api/admin/tickets/" + currentTicket.id + "/email", "POST", { to: to, pdfBase64: base64 }).then(function () {
+            hint.classList.add("hidden");
+            toast("Intake form sent to " + to + ".", true);
+          }).catch(function (err) {
+            hint.classList.add("hidden");
+            btn.disabled = false;
+            if (err.message === "unauthorized") showLogin("Session expired. Sign in again.");
+            else toast(err.message, false);
+          });
         });
-      });
+      } catch (err) {
+        hint.classList.add("hidden");
+        btn.disabled = false;
+        toast(err.message || "Could not generate the PDF.", false);
+      }
     });
 
     document.getElementById("ticketsBody").addEventListener("change", function (e) {
@@ -1041,19 +1047,25 @@
       btn.disabled = true;
       hint.textContent = "Generating PDF and uploading…";
       hint.classList.remove("hidden");
-      getIntakePdfBase64(currentTicket, function (base64) {
-        api("/api/admin/tickets/" + currentTicket.id + "/intake-archive", "POST", { pdfBase64: base64 })
-          .then(function (d) {
-            hint.classList.add("hidden");
-            toast(d.message || "PDF saved to Google Drive.", true);
-          })
-          .catch(function (err) {
-            hint.classList.add("hidden");
-            if (err.message === "unauthorized") showLogin("Session expired. Sign in again.");
-            else toast(err.message, false);
-          })
-          .finally(function () { btn.disabled = false; });
-      });
+      try {
+        getIntakePdfBase64(currentTicket, function (base64) {
+          api("/api/admin/tickets/" + currentTicket.id + "/intake-archive", "POST", { pdfBase64: base64 })
+            .then(function (d) {
+              hint.classList.add("hidden");
+              toast(d.message || "PDF saved to Google Drive.", true);
+            })
+            .catch(function (err) {
+              hint.classList.add("hidden");
+              if (err.message === "unauthorized") showLogin("Session expired. Sign in again.");
+              else toast(err.message, false);
+            })
+            .finally(function () { btn.disabled = false; });
+        });
+      } catch (err) {
+        hint.classList.add("hidden");
+        btn.disabled = false;
+        toast(err.message || "Could not generate the PDF.", false);
+      }
     });
 
     document.getElementById("prefsLink").addEventListener("click", openPrefs);

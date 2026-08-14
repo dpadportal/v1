@@ -101,9 +101,16 @@ function buildIntakeDoc(t) {
 }
 
 function downloadIntakePdf(ticket) {
+  if (typeof pdfMake === "undefined") {
+    alert("The PDF library did not load. Please refresh the page and try again.");
+    return;
+  }
   pdfMake.createPdf(buildIntakeDoc(ticket)).download("Intake-Form-" + ticket.arta_reference_no + ".pdf");
 }
 
 function getIntakePdfBase64(ticket, callback) {
+  if (typeof pdfMake === "undefined") {
+    throw new Error("The PDF library did not load. Please refresh the page and try again.");
+  }
   pdfMake.createPdf(buildIntakeDoc(ticket)).getBase64(callback);
 }

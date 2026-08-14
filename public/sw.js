@@ -1,11 +1,13 @@
-var CACHE = "dpac-portal-v43";
+var CACHE = "dpac-portal-v44";
 var SHELL = [
   "/",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",
-  "/icons/apple-touch-icon-180.png"
+  "/icons/apple-touch-icon-180.png",
+  "/vendor/pdfmake.min.js",
+  "/vendor/vfs_fonts.js"
 ];
 
 self.addEventListener("install", function (event) {
