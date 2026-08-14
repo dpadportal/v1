@@ -583,6 +583,11 @@ admin.get("/about", async (c) => {
       description:
         "Division Public Assistance Desk - feedback, complaint, and request portal. Bilingual (English/Tagalog), ARTA-compliant reference numbers (ARTA-YYYY-XXXXX).",
       stack: ["Cloudflare Workers", "Hono", "D1 (SQLite)", "KV", "R2", "Cloudflare Assets"],
+      developers: [
+        "John Christian V. Villanueva",
+        "Ivy Rose V. Hipolito",
+        "Erickson N. Glodo",
+      ],
       cron: "0 3 * * SUN",
       compliance: [
         "RA 11032 - Ease of Doing Business and Efficient Government Service Delivery Act of 2018",

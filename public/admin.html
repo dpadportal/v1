@@ -387,15 +387,6 @@
                 class="rounded-lg bg-amber-600 text-white font-bold px-4 py-2 text-xs hover:bg-amber-700 transition">Mark monthly archive done</button>
             </div>
           </div>
-
-          <div class="border-t border-gray-100 pt-5">
-            <div class="flex items-center justify-between mb-3">
-              <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">System status &amp; storage</p>
-              <button id="prefStatusBtn" type="button"
-                class="rounded-lg bg-white border border-gray-300 font-semibold px-3 py-1.5 text-xs hover:bg-gray-50 transition">Refresh</button>
-            </div>
-            <div id="prefStatusBody" class="text-xs text-gray-600">Click Refresh to load system status.</div>
-          </div>
         </div>
       </div>
     </div>
@@ -410,7 +401,7 @@
           <button id="aboutClose" type="button" aria-label="Close"
             class="h-9 w-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition text-xl font-semibold">&times;</button>
         </div>
-        <div class="px-6 py-5" id="aboutBody"></div>
+        <div class="px-6 py-5 max-h-[70vh] overflow-y-auto" id="aboutBody"></div>
       </div>
     </div>
   </div>
@@ -1143,17 +1134,78 @@
       document.getElementById("aboutModal").classList.remove("hidden");
       document.getElementById("aboutBody").innerHTML =
         '<p class="text-gray-500 text-sm">Loading…</p>';
-      api("/api/admin/about").then(function (d) {
-        var a = d.about;
+      Promise.all([api("/api/admin/about"), api("/api/admin/system-status")]).then(function (res) {
+        var a = res[0].about;
+        var s = res[1].status;
+        var stackNote = function (name) {
+          if (!s) return "";
+          if (name === "D1 (SQLite)")
+            return " &middot; " + fmtSize(s.d1.bytes) + " used &middot; " + pctOf(s.d1.bytes, s.d1.limitBytes);
+          if (name === "KV") return " &middot; " + s.kv.total + " keys";
+          if (name === "R2") {
+            if (!s.storage || !s.storage.connected) return ' &middot; <span class="text-red-600">unreachable</span>';
+            return " &middot; " + fmtSize(s.storage.quotaUsedBytes || 0) + " used &middot; " +
+              pctOf(s.storage.quotaUsedBytes || 0, s.storage.quotaLimitBytes);
+          }
+          return "";
+        };
         var html = '<p class="text-xl font-bold text-gray-800">' + esc(a.name) + "</p>"
           + '<p class="text-sm text-gray-500 mb-3">Version ' + esc(a.version) + "</p>"
           + '<p class="text-sm text-gray-700 leading-relaxed mb-3">' + esc(a.description) + "</p>";
         html += '<p class="text-xs font-bold text-gray-500 uppercase mb-1">Stack &amp; automation</p>'
           + "<ul class='text-xs text-gray-600 list-disc ml-4 mb-3'>"
-          + a.stack.map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("")
+          + a.stack.map(function (item) { return "<li>" + esc(item) + stackNote(item) + "</li>"; }).join("")
           + "</ul>"
           + '<p class="text-xs text-gray-600 mb-1">Automated backup cron (UTC): <b>' + esc(a.cron) + "</b></p>"
           + '<p class="text-xs text-gray-600 mb-3">Last email sent: <b>' + (a.lastEmail ? esc(String(a.lastEmail).slice(0, 16)) : "&mdash;") + "</b> &middot; Last backup: <b>" + (a.lastBackup ? esc(String(a.lastBackup).slice(0, 16)) : "&mdash;") + "</b></p>";
+        if (s) {
+          html += '<p class="text-xs font-bold text-gray-500 uppercase mt-4 mb-1">System status</p>';
+          html += '<p class="font-bold text-gray-700 mb-1">Database (D1)</p>';
+          html += '<p>Storage used: <b>' + fmtSize(s.d1.bytes) + "</b>* of " + fmtSize(s.d1.limitBytes) +
+            " (" + pctOf(s.d1.bytes, s.d1.limitBytes) + " of the free-tier threshold)</p>";
+          html += '<p class="text-gray-400">*Estimated from content length &mdash; D1 does not expose exact size.</p>';
+          html += '<p class="ml-2">&middot; Tickets: ' + s.d1.tickets + " rows</p>";
+          html += '<p class="ml-2">&middot; Archived: ' + s.d1.archived + " rows</p>";
+          html += '<p class="ml-2">&middot; Activity log: ' + s.d1.activityLog + " rows</p>";
+          html += '<p class="ml-2">&middot; Accounts: ' + s.d1.accounts + " rows</p>";
+
+          html += '<p class="font-bold text-gray-700 mt-2 mb-1">Cache &amp; queue (KV) &mdash; ' + s.kv.total + " keys</p>";
+          s.kv.byPrefix.forEach(function (k) {
+            html += '<p class="ml-2">&middot; ' + esc(k.prefix) + ": " + k.count + " keys</p>";
+          });
+
+          html += '<p class="font-bold text-gray-700 mt-2 mb-1">File storage (R2)</p>';
+          if (!s.storage) {
+            html += '<p>File archiving is disabled in preferences.</p>';
+          } else if (!s.storage.connected) {
+            html += '<p class="text-red-600">File storage is not reachable.</p>';
+            if (s.storage.error) {
+              html += '<p class="text-red-500 text-[11px] break-words">' + esc(s.storage.error) + "</p>";
+            }
+          } else {
+            html += "<p>Connected</p>";
+            if (s.storage.quotaLimitBytes) {
+              html += '<p>Storage: <b>' + fmtSize(s.storage.quotaUsedBytes || 0) + "</b> of " + fmtSize(s.storage.quotaLimitBytes) +
+                " (" + pctOf(s.storage.quotaUsedBytes || 0, s.storage.quotaLimitBytes) + ")</p>";
+            } else {
+              html += "<p>Storage: <b>" + fmtSize(s.storage.quotaUsedBytes || 0) + "</b></p>";
+            }
+            s.storage.folders.forEach(function (f) {
+              var label = f.bytes ? " &middot; " + fmtSize(f.bytes) : "";
+              html += '<p class="ml-2">&middot; ' + esc(f.name) + ": " + (f.count >= 0 ? f.count + " files" + label : "n/a") + "</p>";
+            });
+          }
+
+          html += '<p class="font-bold text-gray-700 mt-2 mb-1">Email (Brevo)</p>';
+          html += "<p>" + (s.email.configured ? "Configured" : "Not configured")
+            + (s.email.lastEmail ? " &middot; last sent: " + esc(String(s.email.lastEmail).slice(0, 16)) : "") + "</p>";
+        } else {
+          html += '<p class="text-xs text-gray-400 mt-3 mb-2">System status unavailable.</p>';
+        }
+        html += '<p class="text-xs font-bold text-gray-500 uppercase mt-4 mb-1">Developers</p>'
+          + "<ul class='text-xs text-gray-600 list-disc ml-4 mb-3'>"
+          + a.developers.map(function (n) { return "<li>" + esc(n) + "</li>"; }).join("")
+          + "</ul>";
         html += '<p class="text-xs font-bold text-gray-500 uppercase mb-1">Compliance</p>'
           + "<ul class='text-xs text-gray-600 list-disc ml-4'>"
           + a.compliance.map(function (c) { return "<li>" + esc(c) + "</li>"; }).join("")
@@ -1235,64 +1287,6 @@
       if (!limit) return "—";
       return (Math.round((used / limit) * 1000) / 10) + "%";
     }
-
-    document.getElementById("prefStatusBtn").addEventListener("click", function () {
-      var btn = this;
-      var body = document.getElementById("prefStatusBody");
-      btn.disabled = true;
-      btn.textContent = "Loading…";
-      body.innerHTML = '<p class="text-gray-500">Loading system status…</p>';
-      api("/api/admin/system-status").then(function (d) {
-        var s = d.status;
-        var html = "";
-        html += '<p class="font-bold text-gray-700 mb-1">Database (D1)</p>';
-        html += '<p>Storage used: <b>' + fmtSize(s.d1.bytes) + "</b>* of " + fmtSize(s.d1.limitBytes) +
-        " (" + pctOf(s.d1.bytes, s.d1.limitBytes) + " of the free-tier threshold)</p>";
-        html += '<p class="text-gray-400">*Estimated from content length &mdash; D1 does not expose exact size.</p>';
-        html += '<p class="ml-2">&middot; Tickets: ' + s.d1.tickets + " rows</p>";
-        html += '<p class="ml-2">&middot; Archived: ' + s.d1.archived + " rows</p>";
-        html += '<p class="ml-2">&middot; Activity log: ' + s.d1.activityLog + " rows</p>";
-        html += '<p class="ml-2">&middot; Accounts: ' + s.d1.accounts + " rows</p>";
-
-        html += '<p class="font-bold text-gray-700 mt-3 mb-1">Cache &amp; queue (KV) &mdash; ' + s.kv.total + " keys</p>";
-        s.kv.byPrefix.forEach(function (k) {
-          html += '<p class="ml-2">&middot; ' + esc(k.prefix) + ": " + k.count + " keys</p>";
-        });
-
-        html += '<p class="font-bold text-gray-700 mt-3 mb-1">File storage (R2)</p>';
-        if (!s.storage) {
-          html += '<p>File archiving is disabled in preferences.</p>';
-        } else if (!s.storage.connected) {
-          html += '<p class="text-red-600">File storage is not reachable.</p>';
-          if (s.storage.error) {
-            html += '<p class="text-red-500 text-[11px] break-words">' + esc(s.storage.error) + "</p>";
-          }
-        } else {
-          html += "<p>Connected</p>";
-          if (s.storage.quotaLimitBytes) {
-            html += '<p>Storage: <b>' + fmtSize(s.storage.quotaUsedBytes || 0) + "</b> of " + fmtSize(s.storage.quotaLimitBytes) +
-              " (" + pctOf(s.storage.quotaUsedBytes || 0, s.storage.quotaLimitBytes) + ")</p>";
-          } else {
-            html += "<p>Storage: <b>" + fmtSize(s.storage.quotaUsedBytes || 0) + "</b></p>";
-          }
-          s.storage.folders.forEach(function (f) {
-            var label = f.bytes ? " &middot; " + fmtSize(f.bytes) : "";
-            html += '<p class="ml-2">&middot; ' + esc(f.name) + ": " + (f.count >= 0 ? f.count + " files" + label : "n/a") + "</p>";
-          });
-        }
-
-        html += '<p class="font-bold text-gray-700 mt-3 mb-1">Email (Brevo)</p>';
-        html += "<p>" + (s.email.configured ? "Configured" : "Not configured")
-          + (s.email.lastEmail ? " &middot; last sent: " + esc(String(s.email.lastEmail).slice(0, 16)) : "") + "</p>";
-
-        body.innerHTML = html;
-      }).catch(function (e) {
-        body.innerHTML = '<p class="text-red-600">' + esc(e.message || "Failed to load system status.") + "</p>";
-      }).finally(function () {
-        btn.disabled = false;
-        btn.textContent = "Refresh";
-      });
-    });
 
     function recoveryReset() {
       document.getElementById("recoveryError").classList.add("hidden");
