@@ -20,6 +20,20 @@ app.get("/accounts", (c) => c.env.ASSETS.fetch(new Request(new URL("/accounts.ht
 app.get("/logs", (c) => c.env.ASSETS.fetch(new Request(new URL("/logs.html", c.req.url), c.req.raw)));
 app.get("/intake", (c) => c.env.ASSETS.fetch(new Request(new URL("/intake.html", c.req.url), c.req.raw)));
 
+app.get("/files/*", async (c) => {
+  const key = c.req.path.replace(/^\/files\//, "");
+  if (!key) return c.json({ error: "File not found." }, 404);
+  const obj = await c.env.R2.get(key);
+  if (!obj) return c.json({ error: "File not found." }, 404);
+  const name = obj.customMetadata?.name ?? key.split("/").pop() ?? key;
+  const headers: Record<string, string> = {
+    "Content-Type": obj.httpMetadata?.contentType ?? "application/octet-stream",
+    "Cache-Control": "public, max-age=86400",
+  };
+  if (c.req.query("dl") === "1") headers["Content-Disposition"] = `attachment; filename="${name}"`;
+  return new Response(obj.body, { headers });
+});
+
 app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default {
@@ -33,15 +47,15 @@ export default {
 
       try {
         const { getPref } = await import("./lib/prefs");
-        if (await getPref(env, "archive_to_drive") === "1") {
-          const { uploadBackup } = await import("./lib/gdrive");
+        if ((await getPref(env, "archive_to_storage")) === "1") {
+          const { uploadBackup } = await import("./lib/storage");
           const data = await dumpDatabase(env);
           const uploaded = await uploadBackup(env, meta.id, JSON.stringify(data));
-          await logActivity(env, "system", "backup_drive", `Pushed ${uploaded.name} to Google Drive`, "cron");
+          await logActivity(env, "system", "backup_storage", `Pushed ${uploaded.name} to portal storage`, "cron");
         }
       } catch (err) {
-        console.error("Drive backup push failed:", err);
-        await logActivity(env, "system", "backup_drive_failed", String((err as Error)?.message ?? err), "cron");
+        console.error("Storage backup push failed:", err);
+        await logActivity(env, "system", "backup_storage_failed", String((err as Error)?.message ?? err), "cron");
       }
     } catch (err) {
       console.error("Scheduled backup failed:", err);

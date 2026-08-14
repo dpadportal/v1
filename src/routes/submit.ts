@@ -12,7 +12,7 @@ import {
 import { sha256 } from "../lib/crypto";
 import { generateArtaReference, isUniqueConstraintError } from "../lib/arta";
 import { sendConfirmationEmail } from "../lib/email";
-import { uploadEvidence } from "../lib/gdrive";
+import { uploadEvidence } from "../lib/storage";
 import { getPrefs } from "../lib/prefs";
 import { createRateLimiter, clientIp } from "../lib/rate-limit";
 
@@ -222,12 +222,12 @@ submit.post("/", async (c) => {
   if (evidence) {
     try {
       const uploaded = await uploadEvidence(c.env, evidence.name, evidence.mime, evidence.bytes, referenceNo);
-      evidenceUrl = uploaded.webViewLink;
+      evidenceUrl = uploaded.fileUrl;
       await c.env.DB.prepare(
-        `UPDATE tickets SET evidence_file_name = ?, evidence_file_url = ?, evidence_mime = ?, evidence_size = ?, evidence_thumbnail_url = ?
+        `UPDATE tickets SET evidence_file_name = ?, evidence_file_url = ?, evidence_mime = ?, evidence_size = ?, evidence_thumbnail_url = null
          WHERE arta_reference_no = ?`
       )
-        .bind(uploaded.name, evidenceUrl, uploaded.mimeType, evidence.size, uploaded.thumbnailLink, referenceNo)
+        .bind(uploaded.name, evidenceUrl, uploaded.mimeType, evidence.size, referenceNo)
         .run();
     } catch (err) {
       console.error("Evidence upload failed:", err);

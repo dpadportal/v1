@@ -1,5 +1,6 @@
 import type { Env, TicketStatus } from "../types";
-import { connect } from "cloudflare:sockets";
+
+const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 
 const STATUS_LABELS: Record<TicketStatus, string> = {
   Pending: "Pending",
@@ -16,149 +17,62 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function base64(text: string): string {
-  const bytes = new TextEncoder().encode(text);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-interface SmtpReply {
-  code: number;
-  message: string;
-}
-
 export interface EmailAttachment {
   filename: string;
   contentType: string;
   base64: string;
 }
 
-async function smtpSend(
+function senderInfo(env: Env): { name: string; email: string } {
+  const raw = env.EMAIL_FROM ?? "DPAD Portal <noreply@localhost>";
+  const match = /^\s*(.*?)\s*<([^>]+)>/.exec(raw);
+  if (match) return { name: match[1].trim(), email: match[2].trim() };
+  return { name: "DPAD Portal", email: raw.trim() };
+}
+
+async function brevoSend(
   env: Env,
   to: string,
   subject: string,
   html: string,
   attachments: EmailAttachment[] = []
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { SMTP_USER, SMTP_PASSWORD } = env;
-  if (!SMTP_USER || !SMTP_PASSWORD) {
-    return { ok: false, error: "SMTP is not configured." };
+  const apiKey = env.BREVO_API_KEY;
+  if (!apiKey) {
+    return { ok: false, error: "Email service is not configured." };
   }
 
-  const socket = connect(
-    { hostname: "smtp.gmail.com", port: 465 },
-    { secureTransport: "on", allowHalfOpen: true }
-  );
-
-  const writer = socket.writable.getWriter();
-  const reader = socket.readable.getReader();
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  let buffer = "";
-
-  async function readLine(): Promise<string> {
-    while (true) {
-      const idx = buffer.indexOf("\r\n");
-      if (idx !== -1) {
-        const line = buffer.slice(0, idx);
-        buffer = buffer.slice(idx + 2);
-        return line;
-      }
-      const { value, done } = await reader.read();
-      if (done) throw new Error("SMTP connection closed by server.");
-      buffer += decoder.decode(value, { stream: true });
-    }
-  }
-
-  async function readReply(): Promise<SmtpReply> {
-    let code = 0;
-    const lines: string[] = [];
-    while (true) {
-      const line = await readLine();
-      code = Number(line.slice(0, 3));
-      const sep = line[3];
-      lines.push(line.slice(4));
-      if (sep === " ") break;
-    }
-    return { code, message: lines.join(" ") };
-  }
-
-  async function writeLine(text: string): Promise<void> {
-    await writer.write(encoder.encode(text + "\r\n"));
-  }
-
-  async function expect(code: number, what: string): Promise<void> {
-    const reply = await readReply();
-    if (reply.code !== code) {
-      throw new Error(`${what}: SMTP responded ${reply.code} ${reply.message}`);
-    }
-  }
+  const sender = senderInfo(env);
+  const payload = {
+    sender: { name: sender.name, email: sender.email },
+    to: [{ email: to }],
+    subject,
+    htmlContent: html,
+    attachment: attachments.map((a) => ({
+      name: a.filename,
+      content: a.base64.replace(/\s+/g, ""),
+      type: a.contentType,
+    })),
+  };
 
   try {
-    await expect(220, "greeting");
-    await writeLine("EHLO dpacportal.gmail.com");
-    await expect(250, "EHLO");
-    await writeLine(`AUTH PLAIN ${base64(`\0${SMTP_USER}\0${SMTP_PASSWORD}`)}`);
-    await expect(235, "authentication");
-    await writeLine(`MAIL FROM:<${SMTP_USER}>`);
-    await expect(250, "MAIL FROM");
-    await writeLine(`RCPT TO:<${to}>`);
-    await expect(250, "RCPT TO");
-    await writeLine("DATA");
-    await expect(354, "DATA");
-
-    const body = html.replace(/\r?\n/g, "\r\n").replace(/^\./gm, "..");
-    await writeLine(`From: ${env.EMAIL_FROM}`);
-    await writeLine(`To: ${to}`);
-    await writeLine(`Subject: ${subject}`);
-    if (attachments.length > 0) {
-      const boundary = `ARTA_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
-      await writeLine("MIME-Version: 1.0");
-      await writeLine(`Content-Type: multipart/mixed; boundary="${boundary}"`);
-      await writeLine("");
-      await writeLine(`--${boundary}`);
-      await writeLine("Content-Type: text/html; charset=UTF-8");
-      await writeLine("Content-Transfer-Encoding: 8bit");
-      await writeLine("");
-      await writeLine(body);
-      for (const att of attachments) {
-        await writeLine(`--${boundary}`);
-        await writeLine(`Content-Type: ${att.contentType}; name="${att.filename}"`);
-        await writeLine("Content-Transfer-Encoding: base64");
-        await writeLine(`Content-Disposition: attachment; filename="${att.filename}"`);
-        await writeLine("");
-        const lines = att.base64.replace(/\s+/g, "").match(/.{1,76}/g) ?? [""];
-        for (const line of lines) await writeLine(line);
-      }
-      await writeLine(`--${boundary}--`);
-    } else {
-      await writeLine("MIME-Version: 1.0");
-      await writeLine("Content-Type: text/html; charset=UTF-8");
-      await writeLine("Content-Transfer-Encoding: 8bit");
-      await writeLine("");
-      await writeLine(body);
+    const res = await fetch(BREVO_URL, {
+      method: "POST",
+      headers: { "api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Brevo send failed:", res.status, text.slice(0, 300));
+      return { ok: false, error: "Could not send the email. Please try again." };
     }
-    await writeLine(".");
-    await expect(250, "message accepted");
-
-    await env.KV.put("meta:last_email", new Date().toISOString()).catch(() => undefined);
-    await writeLine("QUIT");
-    await reader.read().catch(() => undefined);
-
-    return { ok: true };
   } catch (err) {
-    console.error("SMTP send failed:", err);
+    console.error("Brevo send failed:", err);
     return { ok: false, error: "Could not send the email. Please try again." };
-  } finally {
-    try {
-      await writer.close();
-    } catch {
-      /* already closed */
-    }
-    socket.close();
   }
+
+  await env.KV.put("meta:last_email", new Date().toISOString()).catch(() => undefined);
+  return { ok: true };
 }
 
 export async function sendOtpEmail(
@@ -166,7 +80,7 @@ export async function sendOtpEmail(
   to: string,
   code: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
+  if (!env.BREVO_API_KEY) {
     console.log(`[dev] OTP for ${to}: ${code}`);
     return { ok: true };
   }
@@ -180,7 +94,7 @@ export async function sendOtpEmail(
     </div>
   `;
 
-  return smtpSend(env, to, "Your verification code / Ang iyong verification code", html);
+  return brevoSend(env, to, "Your verification code / Ang iyong verification code", html);
 }
 
 export async function sendConfirmationEmail(
@@ -206,13 +120,12 @@ export async function sendConfirmationEmail(
     </div>
   `;
 
-  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
+  if (!env.BREVO_API_KEY) {
     console.log(`[dev] Confirmation email for ${to}: reference ${referenceNo}`);
     return { ok: true };
   }
 
-  const result = await smtpSend(env, to, `Your ARTA reference number / Ang iyong ARTA reference number: ${referenceNo}`, html);
-  return result;
+  return brevoSend(env, to, `Your ARTA reference number / Ang iyong ARTA reference number: ${referenceNo}`, html);
 }
 
 export async function sendStatusUpdateEmail(
@@ -233,13 +146,12 @@ export async function sendStatusUpdateEmail(
     </div>
   `;
 
-  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
+  if (!env.BREVO_API_KEY) {
     console.log(`[dev] Status update email for ${to}: ${referenceNo} -> ${label}`);
     return { ok: true };
   }
 
-  const result = await smtpSend(env, to, `Status update for ${safeReference}`, html);
-  return result;
+  return brevoSend(env, to, `Status update for ${safeReference}`, html);
 }
 
 export async function sendIntakeFormEmail(
@@ -258,18 +170,14 @@ export async function sendIntakeFormEmail(
     </div>
   `;
 
-  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
+  if (!env.BREVO_API_KEY) {
     console.log(`[dev] Intake form email for ${to}: ${referenceNo}`);
     return { ok: true };
   }
 
-  return smtpSend(
-    env,
-    to,
-    `Clients' Feedback Intake Sheet - ${referenceNo}`,
-    html,
-    [{ filename, contentType: "application/pdf", base64: pdfBase64 }]
-  );
+  return brevoSend(env, to, `Clients' Feedback Intake Sheet - ${referenceNo}`, html, [
+    { filename, contentType: "application/pdf", base64: pdfBase64 },
+  ]);
 }
 
 export async function sendIntakeFormLinkEmail(
@@ -289,10 +197,10 @@ export async function sendIntakeFormLinkEmail(
     </div>
   `;
 
-  if (!env.SMTP_USER || !env.SMTP_PASSWORD) {
+  if (!env.BREVO_API_KEY) {
     console.log(`[dev] Intake form link email for ${to}: ${referenceNo} -> ${fileUrl}`);
     return { ok: true };
   }
 
-  return smtpSend(env, to, `Clients' Feedback Intake Sheet - ${referenceNo}`, html);
+  return brevoSend(env, to, `Clients' Feedback Intake Sheet - ${referenceNo}`, html);
 }

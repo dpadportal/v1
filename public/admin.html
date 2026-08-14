@@ -358,7 +358,7 @@
                 <input id="pref_evidence" type="checkbox" class="h-5 w-5 accent-brand" />
               </label>
               <label class="flex items-center justify-between gap-3">
-                <span class="text-sm text-gray-700">Save archived tickets to Google Drive</span>
+                <span class="text-sm text-gray-700">Save archived tickets to file storage</span>
                 <input id="pref_archiveToDrive" type="checkbox" class="h-5 w-5 accent-brand" />
               </label>
               <div>
@@ -797,6 +797,9 @@
           if (data.ticket.evidence_thumbnail_url) {
             thumb.src = data.ticket.evidence_thumbnail_url;
             thumb.classList.remove("hidden");
+          } else if (String(data.ticket.evidence_mime || "").startsWith("image/")) {
+            thumb.src = data.ticket.evidence_file_url;
+            thumb.classList.remove("hidden");
           } else {
             thumb.classList.add("hidden");
           }
@@ -1111,7 +1114,7 @@
         setPrefChecked("pref_confirmation", p.confirmation_email !== "0");
         setPrefChecked("pref_anonymous", p.anonymous_allowed !== "0");
         setPrefChecked("pref_evidence", p.evidence_required === "1");
-        setPrefChecked("pref_archiveToDrive", p.archive_to_drive !== "0");
+        setPrefChecked("pref_archiveToDrive", p.archive_to_storage !== "0");
         var title = document.getElementById("pref_portalTitle");
         if (title) title.value = p.portal_title || "DPAD Portal";
       }).catch(function (e) {
@@ -1124,7 +1127,7 @@
       api("/api/admin/backup").then(function (d) {
         var last = d.lastBackup ? new Date(d.lastBackup).toLocaleString() : "never";
         box.innerHTML = "<p>Last backup: <b>" + esc(last) + "</b> (" + d.backupCount + " snapshots)</p>"
-          + "<p>Auto: every Sunday 03:00 UTC &middot; keeps the last 12 snapshots &middot; copies to Google Drive</p>";
+          + "<p>Auto: every Sunday 03:00 UTC &middot; keeps the last 12 snapshots &middot; copies to file storage</p>";
       }).catch(function () {
         box.innerHTML = '<p class="text-red-600">Could not load backup info.</p>';
       });
@@ -1170,7 +1173,7 @@
         confirmation_email: document.getElementById("pref_confirmation").checked ? "1" : "0",
         anonymous_allowed: document.getElementById("pref_anonymous").checked ? "1" : "0",
         evidence_required: document.getElementById("pref_evidence").checked ? "1" : "0",
-        archive_to_drive: document.getElementById("pref_archiveToDrive").checked ? "1" : "0",
+        archive_to_storage: document.getElementById("pref_archiveToDrive").checked ? "1" : "0",
         portal_title: document.getElementById("pref_portalTitle").value.trim()
       }).then(function (d) {
         toast(d.message || "Preferences saved.", true);
@@ -1256,31 +1259,31 @@
           html += '<p class="ml-2">&middot; ' + esc(k.prefix) + ": " + k.count + " keys</p>";
         });
 
-        html += '<p class="font-bold text-gray-700 mt-3 mb-1">Google Drive</p>';
-        if (!s.drive) {
-          html += '<p>Archiving to Drive is disabled in preferences.</p>';
-        } else if (!s.drive.connected) {
-          html += '<p class="text-red-600">Drive is not connected.</p>';
-          if (s.drive.error) {
-            html += '<p class="text-red-500 text-[11px] break-words">' + esc(s.drive.error) + "</p>";
+        html += '<p class="font-bold text-gray-700 mt-3 mb-1">File storage (R2)</p>';
+        if (!s.storage) {
+          html += '<p>File archiving is disabled in preferences.</p>';
+        } else if (!s.storage.connected) {
+          html += '<p class="text-red-600">File storage is not reachable.</p>';
+          if (s.storage.error) {
+            html += '<p class="text-red-500 text-[11px] break-words">' + esc(s.storage.error) + "</p>";
           }
         } else {
-          html += '<p>Connected' + (s.drive.accountEmail ? " as <b>" + esc(s.drive.accountEmail) + "</b>" : "") + "</p>";
-          if (s.drive.quotaLimitBytes) {
-            html += '<p>Storage: <b>' + fmtSize(s.drive.quotaUsedBytes || 0) + "</b> of " + fmtSize(s.drive.quotaLimitBytes) +
-              " (" + pctOf(s.drive.quotaUsedBytes || 0, s.drive.quotaLimitBytes) + ")</p>";
+          html += "<p>Connected</p>";
+          if (s.storage.quotaLimitBytes) {
+            html += '<p>Storage: <b>' + fmtSize(s.storage.quotaUsedBytes || 0) + "</b> of " + fmtSize(s.storage.quotaLimitBytes) +
+              " (" + pctOf(s.storage.quotaUsedBytes || 0, s.storage.quotaLimitBytes) + ")</p>";
           } else {
-            html += "<p>Storage: <b>" + fmtSize(s.drive.quotaUsedBytes || 0) + "</b></p>";
+            html += "<p>Storage: <b>" + fmtSize(s.storage.quotaUsedBytes || 0) + "</b></p>";
           }
-          s.drive.folders.forEach(function (f) {
+          s.storage.folders.forEach(function (f) {
             var label = f.bytes ? " &middot; " + fmtSize(f.bytes) : "";
             html += '<p class="ml-2">&middot; ' + esc(f.name) + ": " + (f.count >= 0 ? f.count + " files" + label : "n/a") + "</p>";
           });
         }
 
-        html += '<p class="font-bold text-gray-700 mt-3 mb-1">Email (SMTP)</p>';
-        html += "<p>" + (s.smtp.configured ? "Configured" : "Not configured")
-          + (s.smtp.lastEmail ? " &middot; last sent: " + esc(String(s.smtp.lastEmail).slice(0, 16)) : "") + "</p>";
+        html += '<p class="font-bold text-gray-700 mt-3 mb-1">Email (Brevo)</p>';
+        html += "<p>" + (s.email.configured ? "Configured" : "Not configured")
+          + (s.email.lastEmail ? " &middot; last sent: " + esc(String(s.email.lastEmail).slice(0, 16)) : "") + "</p>";
 
         body.innerHTML = html;
       }).catch(function (e) {

@@ -2,9 +2,9 @@ export interface Env {
   DB: D1Database;
   KV: KVNamespace;
   ASSETS: Fetcher;
+  R2: R2Bucket;
   EMAIL_FROM: string;
-  SMTP_USER?: string;
-  SMTP_PASSWORD?: string;
+  BREVO_API_KEY?: string;
   ADMIN_USER?: string;
   ADMIN_PASSWORD?: string;
 }

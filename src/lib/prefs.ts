@@ -5,7 +5,7 @@ export const PREF_DEFAULTS: Record<string, string> = {
   confirmation_email: "1",
   anonymous_allowed: "1",
   evidence_required: "0",
-  archive_to_drive: "1",
+  archive_to_storage: "1",
   portal_title: "DPAD Portal",
 };
 

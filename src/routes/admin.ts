@@ -12,7 +12,7 @@ import {
   sendIntakeFormLinkEmail,
   sendStatusUpdateEmail,
 } from "../lib/email";
-import { uploadExportCsv, uploadIntakePdf, getDriveStatus } from "../lib/gdrive";
+import { uploadExportCsv, uploadIntakePdf, getStorageStatus } from "../lib/storage";
 import { getPrefs, getPref, setPrefs, PREF_DEFAULTS } from "../lib/prefs";
 import { createSnapshot, dumpDatabase, getSnapshot, listSnapshots, restoreSnapshot } from "../lib/backup";
 
@@ -271,7 +271,7 @@ admin.get("/tickets/export", async (c) => {
   await logActivity(c.env, auth.user.username, "export_tickets", `status=${status || "all"}${q ? ` q=${q}` : ""}`, clientIp(c));
   const archived = await uploadExportCsv(c.env, new Date().toISOString().slice(0, 10), csv);
   if (archived) {
-    await logActivity(c.env, auth.user.username, "export_archive", `Copy saved to Google Drive (${archived.name})`, clientIp(c));
+    await logActivity(c.env, auth.user.username, "export_archive", `Copy saved to portal storage (${archived.name})`, clientIp(c));
   }
 
   return new Response(csv, {
@@ -350,12 +350,12 @@ admin.post("/tickets/:id/email", async (c) => {
   let linkUrl: string | null = null;
   try {
     const uploaded = await uploadIntakePdf(c.env, String(row.arta_reference_no), pdfBytes);
-    linkUrl = uploaded.webViewLink;
+    linkUrl = uploaded.fileUrl;
     await c.env.DB.prepare(`UPDATE tickets SET intake_file_url = ? WHERE id = ?`)
       .bind(linkUrl, id)
       .run();
   } catch (err) {
-    console.error("Intake PDF Drive upload failed:", err);
+    console.error("Intake PDF upload failed:", err);
   }
 
   const sent = linkUrl
@@ -369,14 +369,14 @@ admin.post("/tickets/:id/email", async (c) => {
     c.env,
     auth.user.username,
     "email_intake_form",
-    `${row.arta_reference_no} -> ${to}${linkUrl ? " (Drive link)" : " (attachment)"}`,
+    `${row.arta_reference_no} -> ${to}${linkUrl ? " (archive link)" : " (attachment)"}`,
     clientIp(c)
   );
 
   return c.json({
     ok: true,
     message: linkUrl
-      ? `Intake form saved to Google Drive and sent to ${to}.`
+      ? `Intake form stored in the portal archive and sent to ${to}.`
       : `Intake form sent to ${to}.`,
   });
 });
@@ -422,18 +422,18 @@ admin.post("/tickets/:id/intake-archive", async (c) => {
   let linkUrl: string;
   try {
     const uploaded = await uploadIntakePdf(c.env, String(row.arta_reference_no), base64ToBytes(pdfBase64));
-    linkUrl = uploaded.webViewLink;
+    linkUrl = uploaded.fileUrl;
   } catch (err) {
-    console.error("Intake PDF Drive archive failed:", err);
-    return c.json({ ok: false, error: "Could not save the PDF to Google Drive." }, 502);
+    console.error("Intake PDF archive failed:", err);
+    return c.json({ ok: false, error: "Could not save the PDF to the portal archive." }, 502);
   }
 
   await c.env.DB.prepare(`UPDATE tickets SET intake_file_url = ? WHERE id = ?`)
     .bind(linkUrl, id)
     .run();
-  await logActivity(c.env, auth.user.username, "intake_archive", `${row.arta_reference_no} -> Drive`, clientIp(c));
+  await logActivity(c.env, auth.user.username, "intake_archive", `${row.arta_reference_no} -> portal archive`, clientIp(c));
 
-  return c.json({ ok: true, url: linkUrl, message: "Intake form saved to Google Drive." });
+  return c.json({ ok: true, url: linkUrl, message: "Intake form saved to the portal archive." });
 });
 
 admin.post("/tickets/:id/archive", async (c) => {
@@ -582,7 +582,7 @@ admin.get("/about", async (c) => {
       version: "1.1.0",
       description:
         "Division Public Assistance Desk - feedback, complaint, and request portal. Bilingual (English/Tagalog), ARTA-compliant reference numbers (ARTA-YYYY-XXXXX).",
-      stack: ["Cloudflare Workers", "Hono", "D1 (SQLite)", "KV", "Cloudflare Assets", "Google Drive"],
+      stack: ["Cloudflare Workers", "Hono", "D1 (SQLite)", "KV", "R2", "Cloudflare Assets"],
       cron: "0 3 * * SUN",
       compliance: [
         "RA 11032 - Ease of Doing Business and Efficient Government Service Delivery Act of 2018",
@@ -620,7 +620,7 @@ admin.get("/system-status", async (c) => {
 
   const kvSummary: Array<{ prefix: string; count: number }> = [];
   let kvTotal = 0;
-  for (const prefix of ["otp:", "captcha:", "backup:", "rl:", "gdrive:", "meta:"]) {
+  for (const prefix of ["otp:", "captcha:", "backup:", "rl:", "storage:", "meta:"]) {
     let count = 0;
     let page = await c.env.KV.list({ prefix });
     count += page.keys.length;
@@ -632,12 +632,12 @@ admin.get("/system-status", async (c) => {
     kvSummary.push({ prefix: prefix.slice(0, -1), count });
   }
 
-  let drive = null;
+  let storage = null;
   try {
     const { getPref } = await import("../lib/prefs");
-    if ((await getPref(c.env, "archive_to_drive")) === "1") drive = await getDriveStatus(c.env);
+    if ((await getPref(c.env, "archive_to_storage")) === "1") storage = await getStorageStatus(c.env);
   } catch {
-    drive = null;
+    storage = null;
   }
 
   return c.json({
@@ -653,9 +653,9 @@ admin.get("/system-status", async (c) => {
         accounts: await countFn("admin_users"),
       },
       kv: { total: kvTotal, byPrefix: kvSummary },
-      drive,
-      smtp: {
-        configured: Boolean(c.env.SMTP_USER && c.env.SMTP_PASSWORD),
+      storage,
+      email: {
+        configured: Boolean(c.env.BREVO_API_KEY),
         lastEmail: await c.env.KV.get("meta:last_email"),
       },
     },
