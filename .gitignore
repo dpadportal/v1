@@ -5,3 +5,6 @@ node_modules/
 .DS_Store
 dpac-signed-package.zip
 dpac-signed-package-INFO.txt
+arta-db-backup.sql
+*.keystore
+signing-key-info.txt
