@@ -634,7 +634,7 @@
             var acronymTargets = ["Tapat", "Ugnayan", "Gawa", "Oportunidad", "Novo"];
             el.innerHTML = el.textContent.split(/(\s+)/).map(function (w) {
               for (var a = 0; a < acronymTargets.length; a++) {
-                if (w === acronymTargets[a]) {
+                if (w.replace(/[^A-Za-z\u00D1\u00F1]/g, "") === acronymTargets[a]) {
                   return '<span class="acronym-letter">' + w[0] + "</span>" + w.slice(1);
                 }
               }
