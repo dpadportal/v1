@@ -9,7 +9,7 @@ export interface Env {
   ADMIN_PASSWORD?: string;
 }
 
-export const NATURE_VALUES = ["complaint", "suggestions", "praise"] as const;
+export const NATURE_VALUES = ["complaint", "suggestions", "praise", "inquiry", "request"] as const;
 export type NatureOfRequest = (typeof NATURE_VALUES)[number];
 
 export const TICKET_STATUSES = ["Pending", "Under Review", "Resolved"] as const;

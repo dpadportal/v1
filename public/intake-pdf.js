@@ -1,5 +1,7 @@
 var INTAKE_NATURE_LABELS = {
   complaint: "Complaint",
+  inquiry: "Inquiry",
+  request: "Request",
   suggestions: "Suggestions",
   praise: "Praise",
 };

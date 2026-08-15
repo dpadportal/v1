@@ -29,9 +29,11 @@ const EVIDENCE_TYPES = new Set([
 ]);
 
 const NATURE_LABELS: Record<NatureOfRequest, string> = {
-  complaint: "Complaint",
-  suggestions: "Suggestions",
-  praise: "Praise",
+complaint: "Complaint",
+    suggestions: "Suggestions",
+    praise: "Praise",
+    inquiry: "Inquiry",
+    request: "Request",
 };
 
 const submit = new Hono<{ Bindings: Env }>();

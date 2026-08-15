@@ -342,6 +342,8 @@ Please provide the required information to process your feedback. We will ensure
             <select id="nature_of_request" name="nature_of_request" required class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-white focus:ring-2 focus:ring-brand focus:border-brand outline-none">
               <option value="" data-i18n="form.selectNature">Select one</option>
               <option value="complaint" data-i18n="form.natureComplaint">Complaint</option>
+              <option value="inquiry" data-i18n="form.natureInquiry">Inquiry</option>
+              <option value="request" data-i18n="form.natureRequest">Request</option>
               <option value="praise" data-i18n="form.naturePraise">Praise</option>
               <option value="suggestions" data-i18n="form.natureSuggestion">Suggestions</option>
             </select>
@@ -533,6 +535,8 @@ Please provide the required information to process your feedback. We will ensure
           "form.nature": "Nature of Concern *",
           "form.selectNature": "Select one",
           "form.natureComplaint": "Complaint",
+          "form.natureInquiry": "Inquiry",
+          "form.natureRequest": "Request",
           "form.natureSuggestion": "Suggestions",
           "form.naturePraise": "Praise",
           "form.description": "Description *",
@@ -595,6 +599,8 @@ Please provide the required information to process your feedback. We will ensure
           "form.nature": "Uri ng Isyu *",
           "form.selectNature": "Pumili ng isa",
           "form.natureComplaint": "Reklamo (Complaint)",
+          "form.natureInquiry": "Katanungan (Inquiry)",
+          "form.natureRequest": "Kahilingan (Request)",
           "form.natureSuggestion": "Mungkahi (Suggestions)",
           "form.naturePraise": "Papuri (Praise)",
           "form.description": "Paglalarawan *",
@@ -1008,6 +1014,8 @@ Please provide the required information to process your feedback. We will ensure
           var ticket = data.ticket;
           var NATURE_KEYS = {
             "complaint": "form.natureComplaint",
+            "inquiry": "form.natureInquiry",
+            "request": "form.natureRequest",
             "suggestions": "form.natureSuggestion",
             "praise": "form.naturePraise"
           };

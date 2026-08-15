@@ -10,7 +10,7 @@ CREATE TABLE tickets (
   school_name TEXT NOT NULL,
   person_name TEXT,
   person_position TEXT,
-  nature_of_request TEXT NOT NULL CHECK (nature_of_request IN ('complaint', 'suggestions', 'praise')),
+  nature_of_request TEXT NOT NULL CHECK (nature_of_request IN ('complaint', 'suggestions', 'praise', 'inquiry', 'request')),
   description TEXT NOT NULL,
   privacy_consent INTEGER NOT NULL DEFAULT 0 CHECK (privacy_consent IN (0, 1)),
   is_anonymous INTEGER NOT NULL DEFAULT 0 CHECK (is_anonymous IN (0, 1)),
