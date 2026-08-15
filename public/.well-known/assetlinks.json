@@ -2,7 +2,7 @@
       "relation": ["delegate_permission/common.handle_all_urls"],
       "target": {
         "namespace": "android_app",
-        "package_name": "dev.workers.dpadportal.arta_submission_form.twa",
-        "sha256_cert_fingerprints": ["86:2E:B2:43:63:38:72:AF:29:C1:CC:9C:B3:95:9F:49:F5:2D:E1:7F:D5:7E:7A:BE:CB:71:7E:9C:83:67:DE:02"]
+        "package_name": "dev.workers.dpadportal.sdo_ne.twa",
+        "sha256_cert_fingerprints": ["5A:D5:6B:74:6A:8B:60:90:22:FE:D4:26:93:CD:33:EE:42:19:40:EF:61:A6:A1:A2:5C:E9:A1:D4:95:06:5B:50"]
       }
     }]
