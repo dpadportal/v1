@@ -516,6 +516,7 @@ Please provide the required information to process your feedback. We will ensure
           "form.title": "File a Feedback",
           "form.sub": "Please provide the required information to process your feedback. We will ensure that your identity remains confidential.",
           "form.anonymous": "Want to stay anonymous?",
+          "form.anonymousOn": "You are now completely anonymous.",
           "form.anonymousHint": "No name, no email, no code — just your feedback, fully confidential.",
           "form.anonymousNote": "Your identity stays completely hidden — no email, verification code, or personal details required.",
           "form.fullName": "Full Name (optional)",
@@ -577,6 +578,7 @@ Please provide the required information to process your feedback. We will ensure
           "form.title": "Magsumite ng Reklamo, Komento, o Kahilingan",
           "form.sub": "Ilagay ang mga kinakailangang detalye upang maiproseso ang iyong feedback. Sisiguraduhin naming mananatiling kumpidensyal ang iyong pagkakakilanlan.",
           "form.anonymous": "Ayaw mo bang magpakilala?",
+          "form.anonymousOn": "Ganap ka nang Anonymous ngayon",
           "form.anonymousHint": "Walang problema. Maaari kang magsumite ng feedback nang hindi inilalagay ang iyong pagkakakilanlan.",
           "form.anonymousNote": "Mananatiling lubos na pribado ang iyong pagkakakilanlan — hindi kinakailangan ang email, verification code, o personal na detalye.",
           "form.fullName": "Buong Pangalan (opsyonal)",
@@ -730,6 +732,7 @@ Please provide the required information to process your feedback. We will ensure
       var descInput = document.getElementById("description");
       var anonToggle = document.getElementById("anonToggle");
       var anonBox = document.getElementById("anonBox");
+      var anonTitle = document.getElementById("anonTitle");
       var personalFields = document.getElementById("personalFields");
       var formSubNote = document.getElementById("formSubNote");
       var successNote = document.getElementById("successNote");
@@ -784,6 +787,8 @@ Please provide the required information to process your feedback. We will ensure
         anonToggle.classList.toggle("on", isAnon);
         anonToggle.setAttribute("aria-checked", String(isAnon));
         anonBox.classList.toggle("active", isAnon);
+        anonTitle.setAttribute("data-i18n", isAnon ? "form.anonymousOn" : "form.anonymous");
+        anonTitle.textContent = t(isAnon ? "form.anonymousOn" : "form.anonymous");
         personalFields.classList.toggle("collapsed", isAnon);
         personalFields.querySelectorAll("input").forEach(function (el) {
           el.disabled = isAnon;
@@ -809,6 +814,8 @@ Please provide the required information to process your feedback. We will ensure
           anonToggle.classList.remove("on");
           anonToggle.setAttribute("aria-checked", "false");
           anonBox.classList.remove("active");
+          anonTitle.setAttribute("data-i18n", "form.anonymous");
+          anonTitle.textContent = t("form.anonymous");
           personalFields.classList.remove("collapsed");
           personalFields.querySelectorAll("input").forEach(function (el) { el.disabled = false; });
           formSubNote.setAttribute("data-i18n", "form.sub");
