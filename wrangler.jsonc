@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "arta-submission-form",
+  "name": "sdo-ne",
   "compatibility_date": "2026-08-06",
   "main": "src/index.ts",
   "assets": {
