@@ -27,6 +27,10 @@ function basicAuth(username: string, password: string): string {
 describe("public API", () => {
   beforeAll(async () => {
     await applySchema();
+    await env.DB.prepare(
+      `INSERT INTO schools (district, school_name, school_id, school_email) VALUES
+       ('Cabanatuan City', 'Nueva Ecija High School', '300826', '300826@deped.gov.ph')`
+    ).run();
   });
 
   beforeEach(async () => {

@@ -11,6 +11,7 @@
     "test": "node node_modules/vitest/vitest.mjs run",
     "db:init": "node node_modules/wrangler/bin/wrangler.js d1 execute arta-db --local --file=./schema.sql",
     "db:init:remote": "node node_modules/wrangler/bin/wrangler.js d1 execute arta-db --remote --file=./schema.sql",
+    "seed:schools": "node scripts/seed-schools.mjs",
     "cf-typegen": "node node_modules/wrangler/bin/wrangler.js types --env-interface Env"
   },
   "dependencies": {

@@ -28,7 +28,7 @@ npm run typecheck:test   # type-check the test suite
 npm test                 # run the vitest suite (Workers pool: real D1/KV/R2)
 ```
 
-The suite covers validators, crypto, password hashing, rate limiting, ARTA reference generation, preferences, backups/restore, and end-to-end API flows (OTP → CAPTCHA → submit → track, anonymous submissions, evidence upload to R2, CSRF blocking, and admin status updates with activity logging).
+The suite covers validators, crypto, password hashing, rate limiting, DPAD reference generation, preferences, backups/restore, the school reference (districts, district filter, submit validation with the `school_other` fallback), and end-to-end API flows (OTP → CAPTCHA → submit → track, anonymous submissions, evidence upload to R2, CSRF blocking, and admin status updates with activity logging).
 
 The OTP code is logged to the terminal (no email needed while developing). To enable real email, create a `.dev.vars` file:
 
@@ -70,6 +70,8 @@ wrangler secret put ADMIN_PASSWORD
 | `/api/captcha` | POST | Generates a math problem, stores the hashed answer in KV, returns `{ sessionId, problem }` |
 | `/api/submit` | POST | Validates payload, verifies OTP + CAPTCHA, inserts ticket into D1, emails the DPAD reference |
 | `/api/track/:ref` | GET | Looks up a ticket by `DPAD-YYYY-XXXXX` and returns its status |
+| `/api/schools` | GET | Lists school-reference districts (derived from the `schools` table) |
+| `/api/schools?district=` | GET | Lists schools/offices within a district (60/min per-IP limit) |
 | `/api/admin/tickets` | GET | Lists tickets (filter: `status`, `q`; page: `limit`, `offset`) — requires Basic Auth |
 | `/api/admin/tickets/export` | GET | Downloads matching tickets as CSV (respects `status` + `q` filters) — requires Basic Auth |
 | `/api/admin/tickets/:id` | GET | Returns one full ticket — requires Basic Auth |
@@ -153,6 +155,19 @@ The site is installable as an app on any device:
 ## Data model (`tickets`)
 
 `arta_reference_no` (unique, `DPAD-2026-00001`), `full_name` (optional), `cellphone_number` (optional), `email_address`, `district` (optional), `school_name`, `nature_of_request` (`complaint` / `suggestions` / `praise`), `description`, `privacy_consent`, `status` (`Pending` / `Under Review` / `Resolved`), `created_at`, `updated_at`.
+
+### School reference (`schools`)
+
+The submission form populates the district dropdown from the `schools` table, and after a district is chosen, offers only the schools/offices that belong to it (plus an *Other / Not in the list* free-text option). Submissions are validated server-side: with a district selected, `school_name` must exist in that district unless the `school_other=1` flag is sent.
+
+Seed the table from `data/directory.csv` (DepEd export: `SCHOOL ID, SCHOOL NAME, CD, DISTRICT, SCHOOL EMAIL`; Windows-1252 encoded):
+
+```bash
+npm run seed:schools           # reads data/directory.csv, writes data/seed-schools.sql
+wrangler d1 execute arta-db --remote --file=data/seed-schools.sql
+```
+
+The script trims/normalizes names, fixes known district typos (`Riza` → `Rizal`, `Penaranda` → `Peñaranda`), drops empty rows, dedupes by `(district, school_name)` / school ID, and reports conflicts. Migration `migrations/007-schools.sql` creates the table.
 
 Status starts as `Pending`; update it in D1 to reflect progress:
 
