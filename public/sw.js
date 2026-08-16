@@ -1,4 +1,4 @@
-var CACHE = "dpac-portal-v70";
+var CACHE = "dpac-portal-v71";
 var SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -38,17 +38,28 @@ self.addEventListener("fetch", function (event) {
   if (url.pathname === "/background.mp4" || url.pathname === "/background.jpg") return;
 
   event.respondWith(
-    caches.match(request).then(function (hit) {
-      if (hit) return hit;
-      return fetch(request).then(function (response) {
-        if (response && response.ok) {
-          var clone = response.clone();
-          caches.open(CACHE).then(function (cache) { cache.put(request, clone); });
-        }
-        return response;
-      }).catch(function () {
-        return caches.match("/");
-      });
-    })
+    (request.mode === "navigate"
+      ? fetch(request).then(function (response) {
+          if (response && response.ok) {
+            var clone = response.clone();
+            caches.open(CACHE).then(function (cache) { cache.put(request, clone); });
+          }
+          return response;
+        }).catch(function () {
+          return caches.match(request).then(function (hit) { return hit || caches.match("/"); });
+        })
+      : caches.match(request).then(function (hit) {
+          if (hit) return hit;
+          return fetch(request).then(function (response) {
+            if (response && response.ok) {
+              var clone = response.clone();
+              caches.open(CACHE).then(function (cache) { cache.put(request, clone); });
+            }
+            return response;
+          }).catch(function () {
+            return caches.match("/");
+          });
+        })
+    )
   );
 });
