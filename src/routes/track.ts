@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
-import { ARTA_RE } from "../lib/validators";
+import { DPAD_RE } from "../lib/validators";
 import { createRateLimiter, clientIp } from "../lib/rate-limit";
 
 const TRACK_RATE_LIMIT = 20;
@@ -33,8 +33,8 @@ track.get("/:ref", async (c) => {
   }
 
   const ref = c.req.param("ref").trim().toUpperCase();
-  if (!ARTA_RE.test(ref)) {
-    return c.json({ found: false, error: "Invalid reference number. Use the format ARTA-YYYY-XXXXX." }, 400);
+  if (!DPAD_RE.test(ref)) {
+    return c.json({ found: false, error: "Invalid reference number. Use the format DPAD-YYYY-XXXXX." }, 400);
   }
 
   const row = await c.env.DB.prepare(

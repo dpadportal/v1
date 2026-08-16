@@ -587,7 +587,7 @@ admin.get("/about", async (c) => {
       name: "DPAD Portal",
       version: "1.1.0",
       description:
-        "Division Public Assistance Desk - feedback, complaint, and request portal. Bilingual (English/Tagalog), ARTA-compliant reference numbers (ARTA-YYYY-XXXXX).",
+        "Division Public Assistance Desk - feedback, complaint, and request portal. Bilingual (English/Tagalog), ARTA-compliant reference numbers (DPAD-YYYY-XXXXX).",
       stack: ["Cloudflare Workers", "Hono", "D1 (SQLite)", "KV", "R2", "Cloudflare Assets"],
       developers: [
         "John Christian V. Villanueva",

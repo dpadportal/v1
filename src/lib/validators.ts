@@ -1,5 +1,5 @@
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const ARTA_RE = /^ARTA-\d{4}-\d{5}$/;
+export const DPAD_RE = /^DPAD-\d{4}-\d{5}$/;
 export const OTP_RE = /^\d{6}$/;
 export const PHONE_RE = /^09\d{9}$/;
 

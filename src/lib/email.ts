@@ -113,7 +113,7 @@ export async function sendConfirmationEmail(
   const html = `
     <div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
       <h2 style="margin: 0 0 12px; color: #2e6b27;">Submission received / Natanggap ang isinumite</h2>
-      <p style="margin: 0 0 8px; color: #374151;">Your ARTA reference number / Ang iyong ARTA reference number:</p>
+      <p style="margin: 0 0 8px; color: #374151;">Your DPAD reference number / Ang iyong DPAD reference number:</p>
       <p style="font-size: 24px; font-weight: 700; letter-spacing: 2px; margin: 0 0 16px; color: #111827;">${safeReference}</p>
       <p style="margin: 0 0 4px; color: #374151;"><strong>Nature / Uri:</strong> ${safeNature}</p>
       <p style="margin: 0 0 16px; color: #374151;"><strong>Summary / Buod:</strong> ${safePreview}</p>
@@ -127,7 +127,7 @@ export async function sendConfirmationEmail(
     return { ok: true };
   }
 
-  return brevoSend(env, to, `Your ARTA reference number / Ang iyong ARTA reference number: ${referenceNo}`, html);
+  return brevoSend(env, to, `Your DPAD reference number / Ang iyong DPAD reference number: ${referenceNo}`, html);
 }
 
 export async function sendStatusUpdateEmail(

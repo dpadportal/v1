@@ -1,6 +1,6 @@
-export async function generateArtaReference(db: D1Database): Promise<string> {
+export async function generateDpadReference(db: D1Database): Promise<string> {
   const year = new Date().getFullYear();
-  const prefix = `ARTA-${year}-`;
+  const prefix = `DPAD-${year}-`;
 
   const row = await db
     .prepare(

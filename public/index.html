@@ -412,7 +412,7 @@ Please provide the required information to process your feedback. We will ensure
         </div>
         <div class="px-6 py-5">
           <label for="trackRef" class="block text-sm font-semibold text-gray-700" data-i18n="track.label">DPAD Reference Number</label>
-          <input id="trackRef" type="text" placeholder="ARTA-2026-00001" autocapitalize="characters" spellcheck="false"
+          <input id="trackRef" type="text" placeholder="DPAD-2026-00001" autocapitalize="characters" spellcheck="false"
             class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 tracking-wide font-mono focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
           <p id="trackError" class="error-text hidden"></p>
           <button id="trackBtn" type="button"
@@ -553,7 +553,7 @@ Please provide the required information to process your feedback. We will ensure
           "track.natureLabel": "Nature:",
           "track.dateLabel": "Submitted:",
           "track.notFound": "No ticket found with that reference number.",
-          "track.invalid": "Invalid format. Use ARTA-YYYY-XXXXX.",
+          "track.invalid": "Invalid format. Use DPAD-YYYY-XXXXX.",
           "success.title": "Submission Received",
           "success.body": "Your DPAD reference number is:",
           "success.note": "A confirmation email has been sent. Use this number to track your ticket.",
@@ -617,7 +617,7 @@ Please provide the required information to process your feedback. We will ensure
           "track.natureLabel": "Uri:",
           "track.dateLabel": "Isinumite:",
           "track.notFound": "Walang ticket na natagpuan gamit ang reference number na iyon.",
-          "track.invalid": "Maling format. Gamitin ang ARTA-YYYY-XXXXX.",
+          "track.invalid": "Maling format. Gamitin ang DPAD-YYYY-XXXXX.",
           "success.title": "Natanggap ang Isinumite",
           "success.body": "Ang iyong DPAD reference number ay:",
           "success.note": "May ipinadalang email sa iyo. Gamitin ang numerong ito upang sundan ang iyong ticket.",
@@ -660,7 +660,7 @@ Please provide the required information to process your feedback. We will ensure
             }).join("");
           }
         });
-        document.title = t("hero.heading") + " | ARTA Desk";
+        document.title = t("hero.heading") + " | DPAD Desk";
       }
 
       // ---------- Language toggle ----------
@@ -993,7 +993,7 @@ Please provide the required information to process your feedback. We will ensure
       // ---------- Track ----------
       var trackBtn = document.getElementById("trackBtn");
       var trackError = document.getElementById("trackError");
-      var ARTA_RE = /^ARTA-\d{4}-\d{5}$/;
+      var DPAD_RE = /^DPAD-\d{4}-\d{5}$/;
 
       trackBtn.addEventListener("click", function () { trackTicket(document.getElementById("trackRef").value); });
       document.getElementById("trackRef").addEventListener("keydown", function (e) { if (e.key === "Enter") trackTicket(e.target.value); });
@@ -1003,7 +1003,7 @@ Please provide the required information to process your feedback. We will ensure
         document.getElementById("trackRef").value = ref;
         showError(trackError, "");
         document.getElementById("trackResult").classList.add("hidden");
-        if (!ARTA_RE.test(ref)) { showError(trackError, t("track.invalid")); return; }
+        if (!DPAD_RE.test(ref)) { showError(trackError, t("track.invalid")); return; }
 
         trackBtn.disabled = true;
         try {

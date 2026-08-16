@@ -10,7 +10,7 @@ import {
   MAX_LENGTHS,
 } from "../lib/validators";
 import { sha256 } from "../lib/crypto";
-import { generateArtaReference, isUniqueConstraintError } from "../lib/arta";
+import { generateDpadReference, isUniqueConstraintError } from "../lib/reference";
 import { sendConfirmationEmail } from "../lib/email";
 import { uploadEvidence } from "../lib/storage";
 import { getPrefs } from "../lib/prefs";
@@ -193,7 +193,7 @@ submit.post("/", async (c) => {
 
   let referenceNo: string | null = null;
   for (let attempt = 0; attempt < 5; attempt++) {
-    const ref = await generateArtaReference(DB);
+    const ref = await generateDpadReference(DB);
     try {
       const result = await DB.prepare(
         `INSERT INTO tickets

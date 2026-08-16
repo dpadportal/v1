@@ -1,6 +1,6 @@
 # ARTA Submission Form (Concern / Complaint / Request)
 
-A bilingual (English/Tagalog) submission and tracking platform deployed on Cloudflare Workers + D1 + KV, with ARTA-compliant reference numbers (`ARTA-YYYY-XXXXX`).
+A bilingual (English/Tagalog) submission and tracking platform deployed on Cloudflare Workers + D1 + KV, with ARTA-compliant reference numbers (`DPAD-YYYY-XXXXX`).
 
 ## Stack
 
@@ -68,8 +68,8 @@ wrangler secret put ADMIN_PASSWORD
 |---|---|---|
 | `/api/send-otp` | POST | Validates email, stores a 6-digit code in KV (5-min TTL, 60-s cooldown, 5/10-min per-IP limit), emails it |
 | `/api/captcha` | POST | Generates a math problem, stores the hashed answer in KV, returns `{ sessionId, problem }` |
-| `/api/submit` | POST | Validates payload, verifies OTP + CAPTCHA, inserts ticket into D1, emails the ARTA reference |
-| `/api/track/:ref` | GET | Looks up a ticket by `ARTA-YYYY-XXXXX` and returns its status |
+| `/api/submit` | POST | Validates payload, verifies OTP + CAPTCHA, inserts ticket into D1, emails the DPAD reference |
+| `/api/track/:ref` | GET | Looks up a ticket by `DPAD-YYYY-XXXXX` and returns its status |
 | `/api/admin/tickets` | GET | Lists tickets (filter: `status`, `q`; page: `limit`, `offset`) — requires Basic Auth |
 | `/api/admin/tickets/export` | GET | Downloads matching tickets as CSV (respects `status` + `q` filters) — requires Basic Auth |
 | `/api/admin/tickets/:id` | GET | Returns one full ticket — requires Basic Auth |
@@ -152,10 +152,10 @@ The site is installable as an app on any device:
 
 ## Data model (`tickets`)
 
-`arta_reference_no` (unique, `ARTA-2026-00001`), `full_name` (optional), `cellphone_number` (optional), `email_address`, `district` (optional), `school_name`, `nature_of_request` (`complaint` / `suggestions` / `praise`), `description`, `privacy_consent`, `status` (`Pending` / `Under Review` / `Resolved`), `created_at`, `updated_at`.
+`arta_reference_no` (unique, `DPAD-2026-00001`), `full_name` (optional), `cellphone_number` (optional), `email_address`, `district` (optional), `school_name`, `nature_of_request` (`complaint` / `suggestions` / `praise`), `description`, `privacy_consent`, `status` (`Pending` / `Under Review` / `Resolved`), `created_at`, `updated_at`.
 
 Status starts as `Pending`; update it in D1 to reflect progress:
 
 ```sql
-UPDATE tickets SET status = 'Resolved', updated_at = datetime('now') WHERE arta_reference_no = 'ARTA-2026-00001';
+UPDATE tickets SET status = 'Resolved', updated_at = datetime('now') WHERE arta_reference_no = 'DPAD-2026-00001';
 ```

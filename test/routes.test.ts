@@ -104,7 +104,7 @@ describe("public API", () => {
     const data = (await res.json()) as { ok: boolean; artaReferenceNo: string };
     expect(res.status).toBe(200);
     expect(data.ok).toBe(true);
-    expect(data.artaReferenceNo).toBe(`ARTA-${YEAR}-00001`);
+    expect(data.artaReferenceNo).toBe(`DPAD-${YEAR}-00001`);
 
     const track = await worker.fetch(`http://test.local/api/track/${data.artaReferenceNo}`);
     const trackData = (await track.json()) as {
@@ -139,7 +139,7 @@ describe("public API", () => {
     const res = await worker.fetch("http://test.local/api/submit", { method: "POST", body: form });
     const data = (await res.json()) as { ok: boolean; artaReferenceNo: string };
     expect(data.ok).toBe(true);
-    expect(data.artaReferenceNo).toBe(`ARTA-${YEAR}-00002`);
+    expect(data.artaReferenceNo).toBe(`DPAD-${YEAR}-00002`);
 
     const row = await env.DB.prepare(
       `SELECT is_anonymous, email_address FROM tickets WHERE arta_reference_no = ?`
@@ -260,7 +260,7 @@ describe("admin API", () => {
   it("lists tickets and updates status with activity logging", async () => {
     await env.DB.prepare(
       `INSERT INTO tickets (arta_reference_no, email_address, school_name, nature_of_request, description, privacy_consent, status)
-       VALUES ('ARTA-2026-00050', 'client@example.com', 'School B', 'complaint', 'Broken fan in room 7.', 1, 'Pending')`
+       VALUES ('DPAD-2026-00050', 'client@example.com', 'School B', 'complaint', 'Broken fan in room 7.', 1, 'Pending')`
     ).run();
 
     const auth = { Authorization: basicAuth("admin", "secret123") };
@@ -285,9 +285,9 @@ describe("admin API", () => {
       `SELECT action, detail FROM activity_log WHERE username = 'admin' ORDER BY id DESC LIMIT 1`
     ).first();
     expect(log?.action).toBe("status_update");
-    expect(String(log?.detail)).toContain("ARTA-2026-00050");
+    expect(String(log?.detail)).toContain("DPAD-2026-00050");
 
-    const track = await worker.fetch("http://test.local/api/track/ARTA-2026-00050");
+    const track = await worker.fetch("http://test.local/api/track/DPAD-2026-00050");
     const trackData = (await track.json()) as { ticket: { status: string } };
     expect(trackData.ticket.status).toBe("Resolved");
   });
@@ -295,7 +295,7 @@ describe("admin API", () => {
   it("rejects status changes with the wrong password", async () => {
     await env.DB.prepare(
       `INSERT INTO tickets (arta_reference_no, email_address, school_name, nature_of_request, description, privacy_consent, status)
-       VALUES ('ARTA-2026-00051', 'client2@example.com', 'School C', 'inquiry', 'Inquiry text.', 1, 'Pending')`
+       VALUES ('DPAD-2026-00051', 'client2@example.com', 'School C', 'inquiry', 'Inquiry text.', 1, 'Pending')`
     ).run();
 
     const res = await worker.fetch("http://test.local/api/admin/tickets/1", {

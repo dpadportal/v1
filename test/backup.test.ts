@@ -47,7 +47,7 @@ describe("backup snapshots", () => {
   it("restores a snapshot and creates a safety snapshot first", async () => {
     await env.DB.prepare(
       `INSERT INTO tickets (arta_reference_no, email_address, school_name, nature_of_request, description, privacy_consent, status)
-       VALUES ('ARTA-2026-00001', 'a@b.com', 'School A', 'complaint', 'desc', 1, 'Pending')`
+       VALUES ('DPAD-2026-00001', 'a@b.com', 'School A', 'complaint', 'desc', 1, 'Pending')`
     ).run();
 
     const before = await createSnapshot(env, "admin", "before delete");

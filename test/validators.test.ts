@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   EMAIL_RE,
-  ARTA_RE,
+  DPAD_RE,
   OTP_RE,
   PHONE_RE,
   MAX_LENGTHS,
@@ -27,14 +27,14 @@ describe("EMAIL_RE", () => {
   });
 });
 
-describe("ARTA_RE", () => {
+describe("DPAD_RE", () => {
   it("accepts the canonical format", () => {
-    expect(ARTA_RE.test("ARTA-2026-00001")).toBe(true);
+    expect(DPAD_RE.test("DPAD-2026-00001")).toBe(true);
   });
 
   it("rejects malformed references", () => {
-    for (const bad of ["ARTA-26-00001", "ARTA-2026-1", "arta-2026-00001", "ARTA-2026-00001x", ""]) {
-      expect(ARTA_RE.test(bad)).toBe(false);
+    for (const bad of ["DPAD-26-00001", "DPAD-2026-1", "dpad-2026-00001", "DPAD-2026-00001x", "ARTA-2026-00001", ""]) {
+      expect(DPAD_RE.test(bad)).toBe(false);
     }
   });
 });
