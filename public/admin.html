@@ -361,10 +361,15 @@
           <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Ticket</p>
           <p id="validateTicketInfo" class="text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2"></p>
           <div>
-            <label for="validateForwardTo" class="block text-sm font-semibold text-gray-700 mb-1">Forward to</label>
-            <select id="validateForwardTo"
-              style="color:#111827;background:#ffffff;color-scheme:light"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand"></select>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Forward to</label>
+            <button type="button" id="validateButton"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed">
+              <span id="validateButtonText" class="text-gray-400">Select district / office…</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-gray-500 shrink-0">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div id="validateMenu" class="hidden mt-1 w-full max-h-64 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg z-50"></div>
             <button id="validateRetry" type="button"
               class="hidden rounded-lg bg-gray-200 font-semibold px-3 py-1.5 text-xs mt-2 hover:bg-gray-300 transition">Retry loading districts</button>
           </div>
@@ -539,11 +544,12 @@
       }).catch(function () {});
     }
 
-    async function api(path, method, body) {
+    async function api(path, method, body, signal) {
       var res = await fetch(path, {
         method: method || "GET",
         headers: authHeaders(),
         body: body ? JSON.stringify(body) : undefined,
+        signal: signal,
       });
       if (res.status === 401 || res.status === 503) throw new Error("unauthorized");
       var data = await res.json().catch(function () { return {}; });
@@ -1132,42 +1138,76 @@
     var pendingPasswordAction = null;
     var validateTicketId = null;
 
+    var validateDistricts = [];
+    var validateForwardValue = "";
+
+    function renderValidateMenu() {
+      document.getElementById("validateMenu").innerHTML = validateDistricts.map(function (d) {
+        return '<button type="button" data-value="' + esc(d) + '" class="validate-item w-full text-left px-3 py-2 text-sm text-gray-900 hover:bg-brand/10 hover:text-brand-dark transition">' + esc(d) + "</button>";
+      }).join("");
+    }
+
+    function selectValidateForward(name) {
+      validateForwardValue = name;
+      var text = document.getElementById("validateButtonText");
+      text.textContent = name;
+      text.className = "text-sm font-medium text-gray-900";
+      document.getElementById("validateMenu").classList.add("hidden");
+      document.getElementById("validateConfirm").disabled = false;
+    }
+
     function openValidateModal(id) {
       validateTicketId = id;
       var err = document.getElementById("validateError");
       var retry = document.getElementById("validateRetry");
+      var btn = document.getElementById("validateButton");
+      var text = document.getElementById("validateButtonText");
       err.classList.add("hidden");
       retry.classList.add("hidden");
+      validateForwardValue = "";
       document.getElementById("validatePassword").value = "";
-      document.getElementById("validateForwardTo").innerHTML = '<option value="">Loading districts…</option>';
-      document.getElementById("validateForwardTo").disabled = true;
+      btn.disabled = true;
+      text.textContent = "Loading districts…";
+      text.className = "text-sm text-gray-500";
+      document.getElementById("validateMenu").classList.add("hidden");
       document.getElementById("validateTicketInfo").textContent = "Loading…";
       document.getElementById("validateConfirm").disabled = true;
       document.getElementById("validateModal").classList.remove("hidden");
-      api("/api/admin/tickets/" + id).then(function (data) {
+      var ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, 10000);
+      api("/api/admin/tickets/" + id, "GET", null, ctrl.signal).then(function (data) {
         var t = data.ticket;
         document.getElementById("validateTicketInfo").textContent =
           t.arta_reference_no + " — " + (Number(t.is_anonymous) ? "Anonymous" : (t.full_name || "")) +
           (t.school_name ? " — " + t.school_name : "");
-        return api("/api/schools").then(function (schools) {
-          var opts = (schools.districts || []).map(function (d) {
-            return '<option value="' + esc(d.name) + '"' + (d.name === t.district ? " selected" : "") + ">" + esc(d.name) + "</option>";
-          });
-          document.getElementById("validateForwardTo").innerHTML =
-            '<option value="" disabled selected>Select district / office…</option>' + opts.join("");
-          document.getElementById("validateForwardTo").disabled = false;
-          document.getElementById("validateConfirm").disabled = false;
+        return api("/api/schools?v=" + Date.now(), "GET", null, ctrl.signal).then(function (schools) {
+          clearTimeout(timer);
+          validateDistricts = schools.districts || [];
+          if (!validateDistricts.length) throw new Error("The district list is empty.");
+          var preset = t.district && validateDistricts.indexOf(t.district) !== -1 ? t.district : "";
+          btn.disabled = false;
+          if (preset) {
+            selectValidateForward(preset);
+          } else {
+            text.textContent = "Select district / office…";
+            text.className = "text-gray-400";
+          }
+          renderValidateMenu();
         });
       }).catch(function (err) {
+        clearTimeout(timer);
         if (err.message === "unauthorized") {
           showLogin("Session expired. Sign in again.");
           closeValidateModal();
         } else {
-          document.getElementById("validateForwardTo").disabled = true;
-          document.getElementById("validateForwardTo").innerHTML = '<option value="">Districts unavailable</option>';
+          btn.disabled = false;
+          validateDistricts = [];
+          text.textContent = "Could not load districts";
+          text.className = "text-sm font-semibold text-red-600";
           document.getElementById("validateTicketInfo").textContent = "Could not load the district list. Please retry.";
           retry.classList.remove("hidden");
           document.getElementById("validateConfirm").disabled = true;
+          renderValidateMenu();
         }
       });
     }
@@ -1241,10 +1281,30 @@
     document.getElementById("validateRetry").addEventListener("click", function () {
       if (validateTicketId) openValidateModal(validateTicketId);
     });
+    document.getElementById("validateButton").addEventListener("click", function () {
+      if (this.disabled) return;
+      var menu = document.getElementById("validateMenu");
+      var open = !menu.classList.contains("hidden");
+      menu.classList.toggle("hidden", open);
+      if (!open) renderValidateMenu();
+    });
+    document.getElementById("validateMenu").addEventListener("click", function (e) {
+      var item = e.target.closest(".validate-item");
+      if (item) selectValidateForward(item.dataset.value);
+    });
+    document.addEventListener("click", function (e) {
+      var menu = document.getElementById("validateMenu");
+      if (menu.classList.contains("hidden")) return;
+      if (e.target.closest("#validateButton") || e.target.closest("#validateMenu")) return;
+      menu.classList.add("hidden");
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") document.getElementById("validateMenu").classList.add("hidden");
+    });
     document.getElementById("validateConfirm").addEventListener("click", function () {
       var btn = this;
       var err = document.getElementById("validateError");
-      var forwardTo = document.getElementById("validateForwardTo").value;
+      var forwardTo = validateForwardValue;
       var password = document.getElementById("validatePassword").value;
       if (!forwardTo) {
         err.textContent = "Pick the district or office to forward to.";

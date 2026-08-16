@@ -113,12 +113,15 @@
             </select>
           </div>
           <div id="newScopeWrap" class="hidden">
-            <label for="newScope" class="block text-sm font-semibold text-gray-700 mb-1">District / Office</label>
-            <select id="newScope" required
-              style="color:#111827;background:#ffffff;color-scheme:light"
-              class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
-              <option value="">Loading districts…</option>
-            </select>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">District / Office</label>
+            <button type="button" id="scopeButton"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed">
+              <span id="scopeButtonText" class="text-gray-400">Select district / office…</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-gray-500 shrink-0">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div id="scopeMenu" class="hidden mt-1 w-full max-h-64 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg z-50"></div>
             <p id="newScopeError" class="hidden text-sm font-semibold text-red-600 mt-1"></p>
             <button id="newScopeRetry" type="button"
               class="hidden rounded-lg bg-gray-200 font-semibold px-3 py-1.5 text-xs mt-2 hover:bg-gray-300 transition">Retry loading districts</button>
@@ -210,11 +213,12 @@
       return { "Authorization": "Basic " + auth, "Content-Type": "application/json" };
     }
 
-    async function api(path, method, body) {
+    async function api(path, method, body, signal) {
       var res = await fetch(path, {
         method: method || "GET",
         headers: authHeaders(),
         body: body ? JSON.stringify(body) : undefined,
+        signal: signal,
       });
       if (res.status === 401 || res.status === 503) throw new Error("unauthorized");
       var data = await res.json().catch(function () { return {}; });
@@ -294,36 +298,62 @@
       }
     }
 
+    var scopeValue = "";
+    var scopeDistricts = [];
+
     function updateCreateEnabled() {
       var role = document.getElementById("newRole").value;
-      var scope = document.getElementById("newScope").value;
-      document.getElementById("createAccountBtn").disabled = role === "district" && !scope;
+      document.getElementById("createAccountBtn").disabled = role === "district" && !scopeValue;
+    }
+
+    function renderScopeMenu() {
+      document.getElementById("scopeMenu").innerHTML = scopeDistricts.map(function (d) {
+        return '<button type="button" data-value="' + esc(d) + '" class="scope-item w-full text-left px-3 py-2 text-sm text-gray-900 hover:bg-brand/10 hover:text-brand-dark transition">' + esc(d) + "</button>";
+      }).join("");
+    }
+
+    function selectScope(name) {
+      scopeValue = name;
+      var text = document.getElementById("scopeButtonText");
+      text.textContent = name;
+      text.className = "text-sm font-medium text-gray-900";
+      document.getElementById("scopeMenu").classList.add("hidden");
+      updateCreateEnabled();
     }
 
     function loadScopeOptions() {
-      var select = document.getElementById("newScope");
+      var btn = document.getElementById("scopeButton");
       var err = document.getElementById("newScopeError");
       var retry = document.getElementById("newScopeRetry");
+      var text = document.getElementById("scopeButtonText");
       err.classList.add("hidden");
       retry.classList.add("hidden");
-      select.disabled = true;
-      select.innerHTML = '<option value="">Loading districts…</option>';
-      api("/api/schools").then(function (schools) {
-        select.innerHTML =
-          '<option value="" disabled selected>Select district / office…</option>' +
-          (schools.districts || []).map(function (d) {
-            return '<option value="' + esc(d.name) + '">' + esc(d.name) + "</option>";
-          }).join("");
-        select.disabled = false;
+      btn.disabled = true;
+      text.textContent = "Loading districts…";
+      text.className = "text-sm text-gray-500";
+      document.getElementById("scopeMenu").classList.add("hidden");
+      var ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, 10000);
+      api("/api/schools?v=" + Date.now(), "GET", null, ctrl.signal).then(function (schools) {
+        clearTimeout(timer);
+        scopeDistricts = schools.districts || [];
+        btn.disabled = false;
+        if (!scopeDistricts.length) throw new Error("The district list is empty.");
+        if (scopeValue && scopeDistricts.indexOf(scopeValue) === -1) scopeValue = "";
+        text.textContent = scopeValue || "Select district / office…";
+        text.className = scopeValue ? "text-sm font-medium text-gray-900" : "text-gray-400";
+        renderScopeMenu();
         updateCreateEnabled();
       }).catch(function (e) {
-        select.disabled = true;
-        select.innerHTML = '<option value="">Districts unavailable</option>';
-        err.textContent = "Could not load the district list." +
-          (e && e.message && e.message !== "unauthorized" ? " (" + e.message + ")" : "") +
-          " Please retry.";
+        clearTimeout(timer);
+        btn.disabled = false;
+        scopeDistricts = [];
+        text.textContent = "Could not load districts";
+        text.className = "text-sm font-semibold text-red-600";
+        err.textContent = "Could not load the district list. Check your connection and retry.";
         err.classList.remove("hidden");
         retry.classList.remove("hidden");
+        renderScopeMenu();
         updateCreateEnabled();
       });
     }
@@ -332,12 +362,34 @@
       var wrap = document.getElementById("newScopeWrap");
       var isDistrict = this.value === "district";
       wrap.classList.toggle("hidden", !isDistrict);
-      document.getElementById("newScope").required = isDistrict;
       if (isDistrict) loadScopeOptions();
       updateCreateEnabled();
     });
 
-    document.getElementById("newScope").addEventListener("change", updateCreateEnabled);
+    document.getElementById("scopeButton").addEventListener("click", function () {
+      if (this.disabled) return;
+      var menu = document.getElementById("scopeMenu");
+      var open = !menu.classList.contains("hidden");
+      menu.classList.toggle("hidden", open);
+      if (!open) renderScopeMenu();
+    });
+
+    document.getElementById("scopeMenu").addEventListener("click", function (e) {
+      var item = e.target.closest(".scope-item");
+      if (item) selectScope(item.dataset.value);
+    });
+
+    document.addEventListener("click", function (e) {
+      var menu = document.getElementById("scopeMenu");
+      if (menu.classList.contains("hidden")) return;
+      if (e.target.closest("#scopeButton") || e.target.closest("#scopeMenu")) return;
+      menu.classList.add("hidden");
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") document.getElementById("scopeMenu").classList.add("hidden");
+    });
+
     document.getElementById("newScopeRetry").addEventListener("click", loadScopeOptions);
 
     document.getElementById("addForm").addEventListener("submit", function (e) {
@@ -345,7 +397,7 @@
       var username = document.getElementById("newUsername").value.trim();
       var password = document.getElementById("newPassword").value;
       var role = document.getElementById("newRole").value;
-      var districtScope = role === "district" ? document.getElementById("newScope").value : null;
+      var districtScope = role === "district" ? scopeValue : null;
       if (role === "district" && !districtScope) {
         toast("Pick the district or office for this account.", false);
         return;
@@ -356,6 +408,9 @@
         document.getElementById("newPassword").value = "";
         document.getElementById("newRole").value = "division";
         document.getElementById("newScopeWrap").classList.add("hidden");
+        scopeValue = "";
+        document.getElementById("scopeButtonText").textContent = "Select district / office…";
+        document.getElementById("scopeButtonText").className = "text-gray-400";
         document.getElementById("createAccountBtn").disabled = true;
         loadAccounts();
       }).catch(function (err) {
