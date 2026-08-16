@@ -45,7 +45,12 @@ Visit `/admin` on the deployed site (Basic Auth, no separate page server):
 
 - **Sign in:** username/password from the `ADMIN_USER` / `ADMIN_PASSWORD` secrets
 - **Features:** stats cards (total per status), filter by status + free-text search, pagination, full ticket details, and status changes — each change emails the submitter a bilingual status update
-- **Roles:** the env-configured `ADMIN_USER` bootstraps as the **superadmin** (auto-promoted on first login if no superadmin exists). Only the superadmin can create/delete accounts or set their own recovery question; superadmin accounts are undeletable and recoverable via a challenge question.
+- **Roles:** three account roles drive what each sign-in can see and do:
+  - **superadmin** (one only, enforced): full access — all tickets, every status change, validation, account management, preferences, backups, logs.
+  - **division** (e.g. CID / SGOD / OSDS staff): sees all tickets, **validates** Pending tickets and forwards them to a district or office (`Validate &amp; forward` button), sets Under Review / Resolved. Cannot change a Pending ticket directly.
+  - **district**: sees only Validated tickets forwarded to its district/office (never Pending), and can mark them **Under Review** only. Resolving and validation are division/superadmin-only.
+  - The env-configured `ADMIN_USER` bootstraps as the **superadmin** (auto-promoted on first login if no superadmin exists). Only the superadmin can create/delete/disable accounts (roles `division` / `district` with a district/office scope) or set their own recovery question; superadmin accounts are undeletable and recoverable via a challenge question. Disabled accounts cannot sign in.
+- **Ticket lifecycle:** `Pending` → (division/superadmin validates & forwards) → `Validated` → (district marks) → `Under Review` → (division/superadmin) → `Resolved`. Every status change and validation requires the acting admin's password and emails the submitter a bilingual status update.
 - **Recovery:** `Forgot password?` on the login page fetches the superadmin's security question, then resets the password when the answer matches.
 - **Activity log:** `/logs` shows audit events (sign-ins, modal views, status changes, exports, account ops) with a **Download report (CSV)** button. Modal views are recorded client-side via `/api/admin/activity`.
 - **Notifications (bell in the header):** shows new submissions from the last 24 hours (click a reference to open it), the monthly **archive reminder** (archiving should happen before the bi-annual cleanup — acknowledge with "I archived data", which snoozes it for 28 days), and backup status.
@@ -75,7 +80,8 @@ wrangler secret put ADMIN_PASSWORD
 | `/api/admin/tickets` | GET | Lists tickets (filter: `status`, `q`; page: `limit`, `offset`) — requires Basic Auth |
 | `/api/admin/tickets/export` | GET | Downloads matching tickets as CSV (respects `status` + `q` filters) — requires Basic Auth |
 | `/api/admin/tickets/:id` | GET | Returns one full ticket — requires Basic Auth |
-| `/api/admin/tickets/:id` | PATCH | Updates a ticket's status and emails the submitter — requires Basic Auth |
+| `/api/admin/tickets/:id` | PATCH | Updates a ticket's status (role-scoped transition matrix) and emails the submitter — requires Basic Auth |
+| `/api/admin/tickets/:id/validate` | POST | Validates a Pending ticket and forwards it to a district/office (`forward_to`, `password`) — **division or superadmin only** |
 | `/api/admin/tickets/:id/email` | POST | Emails the filled intake form (PDF attachment) to an address — requires Basic Auth |
 | `/api/admin/stats` | GET | Counts per status — requires Basic Auth |
 | `/api/admin/login` | POST | Validates credentials and records a sign-in event — requires Basic Auth |
@@ -154,7 +160,7 @@ The site is installable as an app on any device:
 
 ## Data model (`tickets`)
 
-`arta_reference_no` (unique, `DPAD-2026-00001`), `full_name` (optional), `cellphone_number` (optional), `email_address`, `district` (optional), `school_name`, `nature_of_request` (`complaint` / `suggestions` / `praise`), `description`, `privacy_consent`, `status` (`Pending` / `Under Review` / `Resolved`), `created_at`, `updated_at`.
+`arta_reference_no` (unique, `DPAD-2026-00001`), `full_name` (optional), `cellphone_number` (optional), `email_address`, `district` (optional), `school_name`, `nature_of_request` (`complaint` / `inquiry` / `request` / `suggestions` / `praise`), `description`, `privacy_consent`, `status` (`Pending` / `Validated` / `Under Review` / `Resolved`), `validated_by`, `validated_at`, `forwarded_to`, `forwarded_at`, `created_at`, `updated_at`.
 
 ### School reference (`schools`)
 
