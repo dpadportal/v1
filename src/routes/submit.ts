@@ -195,7 +195,7 @@ submit.post("/", async (c) => {
   if (!captchaStored) {
     return c.json({ ok: false, error: "The verification question has expired. Refresh it and try again." }, 400);
   }
-  const captchaHash = await sha256(String(Number(captchaAnswer) || "").trim());
+  const captchaHash = await sha256(String(Number(captchaAnswer)));
   if (captchaStored !== captchaHash) {
     return c.json({ ok: false, error: "Incorrect answer to the verification question." }, 400);
   }
