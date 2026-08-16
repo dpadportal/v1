@@ -4,19 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit",
-    "db:init": "wrangler d1 execute arta-db --local --file=./schema.sql",
-    "db:init:remote": "wrangler d1 execute arta-db --remote --file=./schema.sql",
-    "cf-typegen": "wrangler types --env-interface Env"
+    "dev": "node node_modules/wrangler/bin/wrangler.js dev",
+    "deploy": "node node_modules/wrangler/bin/wrangler.js deploy",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "typecheck:test": "node node_modules/typescript/bin/tsc --noEmit -p test/tsconfig.json",
+    "test": "node node_modules/vitest/vitest.mjs run",
+    "db:init": "node node_modules/wrangler/bin/wrangler.js d1 execute arta-db --local --file=./schema.sql",
+    "db:init:remote": "node node_modules/wrangler/bin/wrangler.js d1 execute arta-db --remote --file=./schema.sql",
+    "cf-typegen": "node node_modules/wrangler/bin/wrangler.js types --env-interface Env"
   },
   "dependencies": {
     "hono": "^4.13.0"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.21.3",
     "@cloudflare/workers-types": "^5.20260804.1",
     "typescript": "^5.9.3",
+    "vitest": "^4.1.10",
     "wrangler": "^4.119.0"
   }
 }

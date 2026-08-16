@@ -37,8 +37,8 @@ export async function uploadEvidence(
   bytes: ArrayBuffer,
   referenceNo: string
 ): Promise<StoredFile> {
-  const stamp = Date.now().toString(36);
-  return putObject(env, `tickets/${referenceNo}/evidence-${stamp}-${safeName(fileName)}`, bytes, mimeType, `${referenceNo}_${fileName}`);
+  const token = crypto.randomUUID().replace(/-/g, "");
+  return putObject(env, `tickets/${referenceNo}/evidence-${token}-${safeName(fileName)}`, bytes, mimeType, `${referenceNo}_${fileName}`);
 }
 
 export async function uploadIntakePdf(
@@ -46,7 +46,8 @@ export async function uploadIntakePdf(
   referenceNo: string,
   pdfBytes: ArrayBuffer
 ): Promise<StoredFile> {
-  return putObject(env, `tickets/${referenceNo}/intake-${referenceNo}.pdf`, pdfBytes, "application/pdf", `Intake-Form-${referenceNo}.pdf`);
+  const token = crypto.randomUUID().replace(/-/g, "");
+  return putObject(env, `tickets/${referenceNo}/intake-${token}.pdf`, pdfBytes, "application/pdf", `Intake-Form-${referenceNo}.pdf`);
 }
 
 export interface BackupUpload {

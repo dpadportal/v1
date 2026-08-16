@@ -3,13 +3,22 @@ import type { Env } from "../types";
 import { EMAIL_RE, normalizeEmail, MAX_LENGTHS } from "../lib/validators";
 import { sha256, randomDigits } from "../lib/crypto";
 import { sendOtpEmail } from "../lib/email";
+import { createRateLimiter, clientIp } from "../lib/rate-limit";
 
 const OTP_TTL_SECONDS = 300; // 5 minutes
 const COOLDOWN_SECONDS = 60;
+const OTP_IP_LIMIT = 5;
+const OTP_IP_WINDOW = 600; // 10 minutes
 
 const otp = new Hono<{ Bindings: Env }>();
 
 otp.post("/", async (c) => {
+  const limiter = createRateLimiter(c.env.KV, "rl:send-otp", OTP_IP_LIMIT, OTP_IP_WINDOW);
+  const { allowed } = await limiter.check(clientIp(c));
+  if (!allowed) {
+    return c.json({ ok: false, error: "Too many code requests from this device. Please try again later." }, 429);
+  }
+
   let body: { email?: unknown };
   try {
     body = await c.req.json();

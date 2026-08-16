@@ -18,6 +18,18 @@ npm run db:init        # create the tickets table in local D1
 npm run dev            # wrangler dev at http://localhost:8787
 ```
 
+> The npm scripts invoke `node` directly (rather than `.bin` shims) so they work even when the repo lives under a folder whose name contains `&` (e.g. `R&D FILES`) on Windows.
+
+### Tests
+
+```bash
+npm run typecheck        # type-check src
+npm run typecheck:test   # type-check the test suite
+npm test                 # run the vitest suite (Workers pool: real D1/KV/R2)
+```
+
+The suite covers validators, crypto, password hashing, rate limiting, ARTA reference generation, preferences, backups/restore, and end-to-end API flows (OTP → CAPTCHA → submit → track, anonymous submissions, evidence upload to R2, CSRF blocking, and admin status updates with activity logging).
+
 The OTP code is logged to the terminal (no email needed while developing). To enable real email, create a `.dev.vars` file:
 
 ```
@@ -54,7 +66,7 @@ wrangler secret put ADMIN_PASSWORD
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/send-otp` | POST | Validates email, stores a 6-digit code in KV (5-min TTL, 60-s cooldown), emails it |
+| `/api/send-otp` | POST | Validates email, stores a 6-digit code in KV (5-min TTL, 60-s cooldown, 5/10-min per-IP limit), emails it |
 | `/api/captcha` | POST | Generates a math problem, stores the hashed answer in KV, returns `{ sessionId, problem }` |
 | `/api/submit` | POST | Validates payload, verifies OTP + CAPTCHA, inserts ticket into D1, emails the ARTA reference |
 | `/api/track/:ref` | GET | Looks up a ticket by `ARTA-YYYY-XXXXX` and returns its status |
@@ -81,6 +93,14 @@ wrangler secret put ADMIN_PASSWORD
 | `/api/admin/backup/download` | GET | Downloads the full database dump as JSON — **superadmin only** |
 | `/api/admin/backup/restore` | POST | Restores a snapshot (safety snapshot taken first) — **superadmin only** |
 | `/api/admin/archive` | POST | Acknowledges the monthly archive reminder (28-day snooze) — **superadmin only** |
+
+## Security
+
+- **CSRF protection:** every state-changing `/api/*` request (POST/PUT/PATCH/DELETE) is rejected unless its `Origin`/`Referer` matches the request host. Blocks cross-site form/fetch attacks against the admin API and submission endpoints.
+- **Rate limiting:** submissions (5/min per IP), OTP requests (5/10-min per IP, plus a 60-s per-email cooldown), CAPTCHA generation, ticket lookups, sign-in attempts, password confirmation, and recovery endpoints are all rate-limited via KV.
+- **Unguessable storage keys:** evidence and intake PDFs are stored in R2 under keys containing a random UUID, so files are not enumerable by reference number alone.
+- **Password hashing:** PBKDF2-SHA256 (100k iterations) with per-user salts; OTP and CAPTCHA answers are stored as SHA-256 hashes, never plaintext.
+- **PII masking:** the public tracking endpoint returns masked names/emails only.
 
 ## Deploying
 
@@ -111,7 +131,7 @@ npm run deploy
 
 ### Continuous deployment (GitHub Actions)
 
-Pushes to `main` trigger an automatic deploy via `.github/workflows/deploy.yml`.
+Pushes to `main` trigger an automatic deploy via `.github/workflows/deploy.yml`. The workflow runs `npm ci`, `npm run typecheck`, `npm run typecheck:test`, and `npm test` before deploying — a failing check blocks the deploy. It does **not** run database migrations; apply `schema.sql` manually.
 Add these repository secrets on GitHub (Settings → Secrets and variables → Actions):
 
 - `CLOUDFLARE_API_TOKEN` — Cloudflare API token with `Workers Scripts: Edit` permission
