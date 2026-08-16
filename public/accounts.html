@@ -21,6 +21,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root { color-scheme: light; }
+    select { color-scheme: light; }
     option { color: #111827; background: #ffffff; }
     body {
       font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -114,12 +115,16 @@
           <div id="newScopeWrap" class="hidden">
             <label for="newScope" class="block text-sm font-semibold text-gray-700 mb-1">District / Office</label>
             <select id="newScope" required
+              style="color:#111827;background:#ffffff;color-scheme:light"
               class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
               <option value="">Loading districts…</option>
             </select>
+            <p id="newScopeError" class="hidden text-sm font-semibold text-red-600 mt-1"></p>
+            <button id="newScopeRetry" type="button"
+              class="hidden rounded-lg bg-gray-200 font-semibold px-3 py-1.5 text-xs mt-2 hover:bg-gray-300 transition">Retry loading districts</button>
           </div>
-          <button type="submit"
-            class="rounded-lg bg-brand text-white font-bold px-5 py-2 text-sm hover:bg-brand-dark transition disabled:opacity-50">
+          <button id="createAccountBtn" type="submit" disabled
+            class="rounded-lg bg-brand text-white font-bold px-5 py-2 text-sm hover:bg-brand-dark transition disabled:opacity-50 disabled:cursor-not-allowed">
             Create account
           </button>
         </form>
@@ -264,15 +269,6 @@
             : "");
         if (currentRole === "superadmin") {
           document.getElementById("recoverySection").classList.remove("hidden");
-          api("/api/schools").then(function (schools) {
-            document.getElementById("newScope").innerHTML =
-              '<option value="" disabled selected>Select district / office…</option>' +
-              schools.districts.map(function (d) {
-                return '<option value="' + esc(d.name) + '">' + esc(d.name) + "</option>";
-              }).join("");
-          }).catch(function () {
-            document.getElementById("newScope").innerHTML = '<option value="">Districts unavailable</option>';
-          });
         } else {
           document.getElementById("addSection").classList.add("hidden");
           document.getElementById("viewOnlyNotice").classList.remove("hidden");
@@ -298,12 +294,51 @@
       }
     }
 
+    function updateCreateEnabled() {
+      var role = document.getElementById("newRole").value;
+      var scope = document.getElementById("newScope").value;
+      document.getElementById("createAccountBtn").disabled = role === "district" && !scope;
+    }
+
+    function loadScopeOptions() {
+      var select = document.getElementById("newScope");
+      var err = document.getElementById("newScopeError");
+      var retry = document.getElementById("newScopeRetry");
+      err.classList.add("hidden");
+      retry.classList.add("hidden");
+      select.disabled = true;
+      select.innerHTML = '<option value="">Loading districts…</option>';
+      api("/api/schools").then(function (schools) {
+        select.innerHTML =
+          '<option value="" disabled selected>Select district / office…</option>' +
+          (schools.districts || []).map(function (d) {
+            return '<option value="' + esc(d.name) + '">' + esc(d.name) + "</option>";
+          }).join("");
+        select.disabled = false;
+        updateCreateEnabled();
+      }).catch(function (e) {
+        select.disabled = true;
+        select.innerHTML = '<option value="">Districts unavailable</option>';
+        err.textContent = "Could not load the district list." +
+          (e && e.message && e.message !== "unauthorized" ? " (" + e.message + ")" : "") +
+          " Please retry.";
+        err.classList.remove("hidden");
+        retry.classList.remove("hidden");
+        updateCreateEnabled();
+      });
+    }
+
     document.getElementById("newRole").addEventListener("change", function () {
       var wrap = document.getElementById("newScopeWrap");
-      wrap.classList.toggle("hidden", this.value !== "district");
-      if (this.value !== "district") document.getElementById("newScope").required = false;
-      else document.getElementById("newScope").required = true;
+      var isDistrict = this.value === "district";
+      wrap.classList.toggle("hidden", !isDistrict);
+      document.getElementById("newScope").required = isDistrict;
+      if (isDistrict) loadScopeOptions();
+      updateCreateEnabled();
     });
+
+    document.getElementById("newScope").addEventListener("change", updateCreateEnabled);
+    document.getElementById("newScopeRetry").addEventListener("click", loadScopeOptions);
 
     document.getElementById("addForm").addEventListener("submit", function (e) {
       e.preventDefault();
@@ -319,6 +354,9 @@
         toast("Account " + username + " created.", true);
         document.getElementById("newUsername").value = "";
         document.getElementById("newPassword").value = "";
+        document.getElementById("newRole").value = "division";
+        document.getElementById("newScopeWrap").classList.add("hidden");
+        document.getElementById("createAccountBtn").disabled = true;
         loadAccounts();
       }).catch(function (err) {
         if (err.message === "unauthorized") logout();

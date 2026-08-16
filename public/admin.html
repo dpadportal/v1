@@ -25,6 +25,7 @@
   <script src="/intake-pdf.js"></script>
   <style>
     :root { color-scheme: light; }
+    select { color-scheme: light; }
     option { color: #111827; background: #ffffff; }
     body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
     .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
@@ -362,7 +363,10 @@
           <div>
             <label for="validateForwardTo" class="block text-sm font-semibold text-gray-700 mb-1">Forward to</label>
             <select id="validateForwardTo"
+              style="color:#111827;background:#ffffff;color-scheme:light"
               class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand"></select>
+            <button id="validateRetry" type="button"
+              class="hidden rounded-lg bg-gray-200 font-semibold px-3 py-1.5 text-xs mt-2 hover:bg-gray-300 transition">Retry loading districts</button>
           </div>
           <input id="validatePassword" type="password" autocomplete="current-password" placeholder="Your password"
             class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand" />
@@ -1131,9 +1135,12 @@
     function openValidateModal(id) {
       validateTicketId = id;
       var err = document.getElementById("validateError");
+      var retry = document.getElementById("validateRetry");
       err.classList.add("hidden");
+      retry.classList.add("hidden");
       document.getElementById("validatePassword").value = "";
       document.getElementById("validateForwardTo").innerHTML = '<option value="">Loading districts…</option>';
+      document.getElementById("validateForwardTo").disabled = true;
       document.getElementById("validateTicketInfo").textContent = "Loading…";
       document.getElementById("validateConfirm").disabled = true;
       document.getElementById("validateModal").classList.remove("hidden");
@@ -1143,11 +1150,12 @@
           t.arta_reference_no + " — " + (Number(t.is_anonymous) ? "Anonymous" : (t.full_name || "")) +
           (t.school_name ? " — " + t.school_name : "");
         return api("/api/schools").then(function (schools) {
-          var opts = schools.districts.map(function (d) {
+          var opts = (schools.districts || []).map(function (d) {
             return '<option value="' + esc(d.name) + '"' + (d.name === t.district ? " selected" : "") + ">" + esc(d.name) + "</option>";
           });
           document.getElementById("validateForwardTo").innerHTML =
-            '<option value="" disabled>Select district / office…</option>' + opts.join("");
+            '<option value="" disabled selected>Select district / office…</option>' + opts.join("");
+          document.getElementById("validateForwardTo").disabled = false;
           document.getElementById("validateConfirm").disabled = false;
         });
       }).catch(function (err) {
@@ -1155,7 +1163,11 @@
           showLogin("Session expired. Sign in again.");
           closeValidateModal();
         } else {
-          document.getElementById("validateTicketInfo").textContent = err.message || "Could not load ticket.";
+          document.getElementById("validateForwardTo").disabled = true;
+          document.getElementById("validateForwardTo").innerHTML = '<option value="">Districts unavailable</option>';
+          document.getElementById("validateTicketInfo").textContent = "Could not load the district list. Please retry.";
+          retry.classList.remove("hidden");
+          document.getElementById("validateConfirm").disabled = true;
         }
       });
     }
@@ -1226,6 +1238,9 @@
     document.getElementById("validateCancel").addEventListener("click", closeValidateModal);
     document.getElementById("validateClose").addEventListener("click", closeValidateModal);
     document.getElementById("validateBackdrop").addEventListener("click", closeValidateModal);
+    document.getElementById("validateRetry").addEventListener("click", function () {
+      if (validateTicketId) openValidateModal(validateTicketId);
+    });
     document.getElementById("validateConfirm").addEventListener("click", function () {
       var btn = this;
       var err = document.getElementById("validateError");

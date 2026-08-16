@@ -16,6 +16,7 @@ schools.get("/", async (c) => {
   }
 
   const district = (c.req.query("district") ?? "").trim();
+  c.header("Cache-Control", "no-store");
   if (!district) {
     const districts = await listDistricts(c.env.DB);
     return c.json({ ok: true, districts });

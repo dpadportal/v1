@@ -49,6 +49,11 @@ describe("schools reference", () => {
     expect(data.districts).toContain("CID");
   });
 
+  it("does not cache the districts response", async () => {
+    const res = await worker.fetch("http://test.local/api/schools");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
   it("filters schools by district (sorted, case-insensitive)", async () => {
     const res = await worker.fetch("http://test.local/api/schools?district=ALIAGA");
     const data = (await res.json()) as { ok: boolean; schools: Array<{ school_name: string; school_id: string | null }> };
