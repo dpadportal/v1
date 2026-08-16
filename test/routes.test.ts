@@ -232,17 +232,44 @@ describe("public API", () => {
 describe("admin API", () => {
   beforeAll(async () => {
     await applySchema();
-    const { salt, hash } = await hashPassword("secret123");
     await env.DB.prepare(
-      `INSERT INTO admin_users (username, password_salt, password_hash, role) VALUES (?, ?, ?, 'admin')`
-    )
-      .bind("admin", salt, hash)
-      .run();
+      `INSERT INTO schools (district, school_name, school_id, school_email) VALUES
+       ('Cabanatuan City', 'Nueva Ecija High School', '300826', '300826@deped.gov.ph'),
+       ('SGOD - Central Office', 'Division Office', '000000', 'sdo@deped.gov.ph')
+       ON CONFLICT (district, school_name) DO NOTHING`
+    ).run();
+    for (const [username, password, role, scope] of [
+      ["admin", "secret123", "division", null],
+      ["super", "super123", "superadmin", null],
+      ["district1", "dist123", "district", "Cabanatuan City"],
+    ] as const) {
+      const { salt, hash } = await hashPassword(password);
+      await env.DB.prepare(
+        `INSERT INTO admin_users (username, password_salt, password_hash, role, district_scope) VALUES (?, ?, ?, ?, ?)`
+      )
+        .bind(username, salt, hash, role, scope)
+        .run();
+    }
   });
 
   beforeEach(async () => {
     await clearKv(["rl:", "otp:", "otp-attempts:", "otp-cooldown:", "captcha:", "backup:"]);
   });
+
+  async function insertTicket(ref: string, status = "Pending", forwardedTo: string | null = null) {
+    const r = await env.DB.prepare(
+      `INSERT INTO tickets (arta_reference_no, email_address, school_name, nature_of_request, description, privacy_consent, status, forwarded_to)
+       VALUES (?, 'client@example.com', 'Nueva Ecija High School', 'complaint', 'Description.', 1, ?, ?)`
+    )
+      .bind(ref, status, forwardedTo)
+      .run();
+    return Number(r.meta.last_row_id);
+  }
+
+  const divAuth = { Authorization: basicAuth("admin", "secret123") };
+  const supAuth = { Authorization: basicAuth("super", "super123") };
+  const distAuth = { Authorization: basicAuth("district1", "dist123") };
+  const json = { "Content-Type": "application/json" };
 
   it("requires authentication", async () => {
     const res = await worker.fetch("http://test.local/api/admin/tickets");
@@ -261,35 +288,39 @@ describe("admin API", () => {
     expect(res.status).toBe(403);
   });
 
-  it("lists tickets and updates status with activity logging", async () => {
-    await env.DB.prepare(
-      `INSERT INTO tickets (arta_reference_no, email_address, school_name, nature_of_request, description, privacy_consent, status)
-       VALUES ('DPAD-2026-00050', 'client@example.com', 'School B', 'complaint', 'Broken fan in room 7.', 1, 'Pending')`
-    ).run();
+  it("division validates, then resolves a ticket with activity logging", async () => {
+    const id = await insertTicket("DPAD-2026-00050");
 
-    const auth = { Authorization: basicAuth("admin", "secret123") };
-
-    const listRes = await worker.fetch("http://test.local/api/admin/tickets", { headers: auth });
+    const listRes = await worker.fetch("http://test.local/api/admin/tickets", { headers: divAuth });
     const listData = (await listRes.json()) as { ok: boolean; tickets: Array<{ id: number; status: string }> };
     expect(listData.ok).toBe(true);
     expect(listData.tickets).toHaveLength(1);
-    const id = listData.tickets[0].id;
+
+    const valRes = await worker.fetch(`http://test.local/api/admin/tickets/${id}/validate`, {
+      method: "POST",
+      headers: { ...divAuth, ...json },
+      body: JSON.stringify({ forward_to: "Cabanatuan City", password: "secret123" }),
+    });
+    expect(valRes.status).toBe(200);
+
+    const row = await env.DB.prepare(`SELECT status, forwarded_to, validated_by FROM tickets WHERE id = ?`).bind(id).first();
+    expect(row?.status).toBe("Validated");
+    expect(row?.forwarded_to).toBe("Cabanatuan City");
+    expect(row?.validated_by).toBe("admin");
 
     const patchRes = await worker.fetch(`http://test.local/api/admin/tickets/${id}`, {
       method: "PATCH",
-      headers: { ...auth, "Content-Type": "application/json" },
+      headers: { ...divAuth, ...json },
       body: JSON.stringify({ status: "Resolved", password: "secret123" }),
     });
     expect(patchRes.status).toBe(200);
 
-    const row = await env.DB.prepare(`SELECT status FROM tickets WHERE id = ?`).bind(id).first();
-    expect(row?.status).toBe("Resolved");
-
     const log = await env.DB.prepare(
-      `SELECT action, detail FROM activity_log WHERE username = 'admin' ORDER BY id DESC LIMIT 1`
-    ).first();
-    expect(log?.action).toBe("status_update");
-    expect(String(log?.detail)).toContain("DPAD-2026-00050");
+      `SELECT action FROM activity_log WHERE username = 'admin' ORDER BY id DESC LIMIT 2`
+    ).all();
+    const actions = log.results.map((r) => r.action);
+    expect(actions).toContain("ticket_validate");
+    expect(actions).toContain("status_update");
 
     const track = await worker.fetch("http://test.local/api/track/DPAD-2026-00050");
     const trackData = (await track.json()) as { ticket: { status: string } };
@@ -297,16 +328,183 @@ describe("admin API", () => {
   });
 
   it("rejects status changes with the wrong password", async () => {
-    await env.DB.prepare(
-      `INSERT INTO tickets (arta_reference_no, email_address, school_name, nature_of_request, description, privacy_consent, status)
-       VALUES ('DPAD-2026-00051', 'client2@example.com', 'School C', 'inquiry', 'Inquiry text.', 1, 'Pending')`
-    ).run();
-
-    const res = await worker.fetch("http://test.local/api/admin/tickets/1", {
+    const id = await insertTicket("DPAD-2026-00051", "Validated", "Cabanatuan City");
+    const res = await worker.fetch(`http://test.local/api/admin/tickets/${id}`, {
       method: "PATCH",
-      headers: { Authorization: basicAuth("admin", "secret123"), "Content-Type": "application/json" },
+      headers: { ...divAuth, ...json },
       body: JSON.stringify({ status: "Resolved", password: "wrong-password" }),
     });
     expect(res.status).toBe(403);
+  });
+
+  it("division cannot change a Pending ticket directly (must validate first)", async () => {
+    const id = await insertTicket("DPAD-2026-00052");
+    const res = await worker.fetch(`http://test.local/api/admin/tickets/${id}`, {
+      method: "PATCH",
+      headers: { ...divAuth, ...json },
+      body: JSON.stringify({ status: "Under Review", password: "secret123" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("superadmin can set Validated on a Pending ticket", async () => {
+    const id = await insertTicket("DPAD-2026-00053");
+    const res = await worker.fetch(`http://test.local/api/admin/tickets/${id}`, {
+      method: "PATCH",
+      headers: { ...supAuth, ...json },
+      body: JSON.stringify({ status: "Validated", password: "super123" }),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("district only sees tickets forwarded to its district, never Pending", async () => {
+    await insertTicket("DPAD-2026-00054", "Pending");
+    await insertTicket("DPAD-2026-00055", "Validated", "Cabanatuan City");
+    await insertTicket("DPAD-2026-00056", "Validated", "SGOD - Central Office");
+
+    const distList = await worker.fetch("http://test.local/api/admin/tickets", { headers: distAuth });
+    const distData = (await distList.json()) as { tickets: Array<{ arta_reference_no: string }> };
+    const distRefs = distData.tickets.map((t) => t.arta_reference_no);
+    expect(distRefs).toContain("DPAD-2026-00055");
+    expect(distRefs).not.toContain("DPAD-2026-00054");
+    expect(distRefs).not.toContain("DPAD-2026-00056");
+
+    const divList = await worker.fetch("http://test.local/api/admin/tickets", { headers: divAuth });
+    const divData = (await divList.json()) as { tickets: Array<{ arta_reference_no: string }> };
+    const divRefs = divData.tickets.map((t) => t.arta_reference_no);
+    for (const ref of ["DPAD-2026-00054", "DPAD-2026-00055", "DPAD-2026-00056"]) {
+      expect(divRefs).toContain(ref);
+    }
+  });
+
+  it("district can mark Under Review but cannot Resolve", async () => {
+    const id = await insertTicket("DPAD-2026-00057", "Validated", "Cabanatuan City");
+
+    const urRes = await worker.fetch(`http://test.local/api/admin/tickets/${id}`, {
+      method: "PATCH",
+      headers: { ...distAuth, ...json },
+      body: JSON.stringify({ status: "Under Review", password: "dist123" }),
+    });
+    expect(urRes.status).toBe(200);
+
+    const resRes = await worker.fetch(`http://test.local/api/admin/tickets/${id}`, {
+      method: "PATCH",
+      headers: { ...distAuth, ...json },
+      body: JSON.stringify({ status: "Resolved", password: "dist123" }),
+    });
+    expect(resRes.status).toBe(403);
+
+    const divRes = await worker.fetch(`http://test.local/api/admin/tickets/${id}`, {
+      method: "PATCH",
+      headers: { ...divAuth, ...json },
+      body: JSON.stringify({ status: "Resolved", password: "secret123" }),
+    });
+    expect(divRes.status).toBe(200);
+  });
+
+  it("district cannot touch tickets forwarded to another district", async () => {
+    const id = await insertTicket("DPAD-2026-00058", "Validated", "SGOD - Central Office");
+    const res = await worker.fetch(`http://test.local/api/admin/tickets/${id}`, {
+      method: "PATCH",
+      headers: { ...distAuth, ...json },
+      body: JSON.stringify({ status: "Under Review", password: "dist123" }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects invalid validation attempts", async () => {
+    const id = await insertTicket("DPAD-2026-00059");
+
+    const asDistrict = await worker.fetch(`http://test.local/api/admin/tickets/${id}/validate`, {
+      method: "POST",
+      headers: { ...distAuth, ...json },
+      body: JSON.stringify({ forward_to: "Cabanatuan City", password: "dist123" }),
+    });
+    expect(asDistrict.status).toBe(403);
+
+    const wrongPass = await worker.fetch(`http://test.local/api/admin/tickets/${id}/validate`, {
+      method: "POST",
+      headers: { ...divAuth, ...json },
+      body: JSON.stringify({ forward_to: "Cabanatuan City", password: "nope" }),
+    });
+    expect(wrongPass.status).toBe(403);
+
+    const badTarget = await worker.fetch(`http://test.local/api/admin/tickets/${id}/validate`, {
+      method: "POST",
+      headers: { ...divAuth, ...json },
+      body: JSON.stringify({ forward_to: "Nowhere Land", password: "secret123" }),
+    });
+    expect(badTarget.status).toBe(400);
+  });
+
+  it("account management requires superadmin", async () => {
+    const getRes = await worker.fetch("http://test.local/api/admin/accounts", { headers: divAuth });
+    expect(getRes.status).toBe(403);
+
+    const postRes = await worker.fetch("http://test.local/api/admin/accounts", {
+      method: "POST",
+      headers: { ...divAuth, ...json },
+      body: JSON.stringify({ username: "evil", password: "password123", role: "division" }),
+    });
+    expect(postRes.status).toBe(403);
+  });
+
+  it("enforces a single superadmin and requires a scope for district accounts", async () => {
+    const secondSuper = await worker.fetch("http://test.local/api/admin/accounts", {
+      method: "POST",
+      headers: { ...supAuth, ...json },
+      body: JSON.stringify({ username: "super2", password: "password123", role: "superadmin" }),
+    });
+    expect(secondSuper.status).toBe(400);
+
+    const noScope = await worker.fetch("http://test.local/api/admin/accounts", {
+      method: "POST",
+      headers: { ...supAuth, ...json },
+      body: JSON.stringify({ username: "dist2", password: "password123", role: "district" }),
+    });
+    expect(noScope.status).toBe(400);
+
+    const ok = await worker.fetch("http://test.local/api/admin/accounts", {
+      method: "POST",
+      headers: { ...supAuth, ...json },
+      body: JSON.stringify({ username: "dist2", password: "password123", role: "district", district_scope: "SGOD - Central Office" }),
+    });
+    expect(ok.status).toBe(200);
+  });
+
+  it("disabled accounts cannot sign in", async () => {
+    const created = await worker.fetch("http://test.local/api/admin/accounts", {
+      method: "POST",
+      headers: { ...supAuth, ...json },
+      body: JSON.stringify({ username: "disabled1", password: "password123", role: "division" }),
+    });
+    expect(created.status).toBe(200);
+    const listed = await worker.fetch("http://test.local/api/admin/accounts", { headers: supAuth });
+    const listData = (await listed.json()) as { accounts: Array<{ id: number; username: string }> };
+    const account = listData.accounts.find((a) => a.username === "disabled1")!;
+    const disableRes = await worker.fetch(`http://test.local/api/admin/accounts/${account.id}`, {
+      method: "PATCH",
+      headers: { ...supAuth, ...json },
+      body: JSON.stringify({ is_active: 0 }),
+    });
+    expect(disableRes.status).toBe(200);
+
+    const res = await worker.fetch("http://test.local/api/admin/login", {
+      method: "POST",
+      headers: { Authorization: basicAuth("disabled1", "password123") },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("preferences are superadmin-only", async () => {
+    const getRes = await worker.fetch("http://test.local/api/admin/preferences", { headers: divAuth });
+    expect(getRes.status).toBe(403);
+    const putRes = await worker.fetch("http://test.local/api/admin/preferences", {
+      method: "PUT",
+      headers: { ...divAuth, ...json },
+      body: JSON.stringify({ preferences: { email_notifications: "1" } }),
+    });
+    expect(putRes.status).toBe(403);
   });
 });

@@ -124,6 +124,7 @@
     </section>
 
     <section id="dashboardSection" class="hidden space-y-6">
+      <div id="scopeBanner" class="hidden rounded-xl border border-brand/30 bg-brand/5 px-4 py-3 text-sm font-semibold text-brand-dark"></div>
       <div id="statsRow" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -149,6 +150,7 @@
         <select id="statusFilter" class="rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm font-medium">
           <option value="">All statuses</option>
           <option value="Pending">Pending</option>
+          <option value="Validated">Validated</option>
           <option value="Under Review">Under Review</option>
           <option value="Resolved">Resolved</option>
           <option value="archived">Archived</option>
@@ -181,6 +183,7 @@
               <th class="px-3 py-3 hidden lg:table-cell max-w-[180px]">Email</th>
               <th class="px-3 py-3 hidden lg:table-cell">School / Office</th>
               <th class="px-3 py-3 hidden md:table-cell">District</th>
+              <th id="forwardedTh" class="px-3 py-3 hidden xl:table-cell">Forwarded to</th>
               <th class="px-3 py-3">Nature</th>
               <th class="px-3 py-3 hidden xl:table-cell">Description</th>
               <th class="px-3 py-3">Status</th>
@@ -274,6 +277,8 @@
           <div><p class="text-xs font-bold text-gray-500 uppercase">Name of Person Related</p><p id="mPersonName" class="text-sm"></p></div>
           <div><p class="text-xs font-bold text-gray-500 uppercase">Position</p><p id="mPersonPosition" class="text-sm"></p></div>
           <div><p class="text-xs font-bold text-gray-500 uppercase">District</p><p id="mDistrict" class="text-sm"></p></div>
+          <div id="mForwardedWrap" class="hidden"><p class="text-xs font-bold text-gray-500 uppercase">Forwarded to</p><p id="mForwarded" class="text-sm"></p></div>
+          <div id="mValidatedWrap" class="hidden"><p class="text-xs font-bold text-gray-500 uppercase">Validated by</p><p id="mValidated" class="text-sm"></p></div>
         </div>
 
         <div class="hidden" id="mEvidenceWrap">
@@ -331,6 +336,40 @@
               class="rounded-lg bg-gray-200 font-semibold px-4 py-2 text-sm hover:bg-gray-300 transition">Cancel</button>
             <button id="passwordConfirm" type="button"
               class="rounded-lg bg-brand text-white font-bold px-4 py-2 text-sm hover:bg-brand-dark transition">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="validateModal" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/60" id="validateBackdrop"></div>
+    <div class="relative z-10 min-h-full flex items-center justify-center p-4">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 bg-brand text-white">
+          <h2 class="text-lg font-bold">Validate &amp; forward</h2>
+          <button id="validateClose" type="button" aria-label="Close"
+            class="h-9 w-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition text-xl font-semibold">&times;</button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <p class="text-sm text-gray-600">
+            Confirm the ticket is valid and forward it to the district or office that will act on it.
+          </p>
+          <p class="text-xs font-bold text-gray-500 uppercase tracking-wide">Ticket</p>
+          <p id="validateTicketInfo" class="text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2"></p>
+          <div>
+            <label for="validateForwardTo" class="block text-sm font-semibold text-gray-700 mb-1">Forward to</label>
+            <select id="validateForwardTo"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand"></select>
+          </div>
+          <input id="validatePassword" type="password" autocomplete="current-password" placeholder="Your password"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand" />
+          <p id="validateError" class="hidden text-sm font-semibold text-red-600"></p>
+          <div class="flex justify-end gap-2">
+            <button id="validateCancel" type="button"
+              class="rounded-lg bg-gray-200 font-semibold px-4 py-2 text-sm hover:bg-gray-300 transition">Cancel</button>
+            <button id="validateConfirm" type="button"
+              class="rounded-lg bg-brand text-white font-bold px-4 py-2 text-sm hover:bg-brand-dark transition">Validate &amp; forward</button>
           </div>
         </div>
       </div>
@@ -455,9 +494,12 @@
     var NATURE_LABELS = { complaint: "Complaint", inquiry: "Inquiry", request: "Request", suggestions: "Suggestions", praise: "Praise" };
     var STATUS_COLORS = {
       "Pending": "bg-amber-100 text-amber-800",
+      "Validated": "bg-violet-100 text-violet-800",
       "Under Review": "bg-blue-100 text-blue-800",
       "Resolved": "bg-green-100 text-green-800",
     };
+
+    var ROLE_LABELS = { superadmin: "Super Admin", division: "Division", district: "District" };
 
     function esc(s) {
       return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -508,15 +550,28 @@
       document.getElementById("loginSection").classList.add("hidden");
       document.getElementById("dashboardSection").classList.remove("hidden");
       document.getElementById("logoutBtn").classList.remove("hidden");
-      document.getElementById("accountsLink").classList.remove("hidden");
-      document.getElementById("logsLink").classList.remove("hidden");
-      document.getElementById("prefsLink").classList.remove("hidden");
+      var isSuper = user.role === "superadmin";
+      var isDivision = user.role === "division";
+      ["accountsLink", "prefsLink"].forEach(function (id) {
+        document.getElementById(id).classList.toggle("hidden", !isSuper);
+      });
+      document.getElementById("logsLink").classList.toggle("hidden", !isSuper && !isDivision);
       document.getElementById("aboutLink").classList.remove("hidden");
       document.getElementById("loginUser").classList.remove("hidden");
       document.getElementById("loginUser").innerHTML = "Signed in as <b>" + esc(user.username) + "</b>" +
-        (user.role === "superadmin"
-          ? ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5 align-middle">superadmin</span>'
+        ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5 align-middle">' +
+        esc(ROLE_LABELS[user.role] || user.role) + "</span>" +
+        (user.role === "district" && user.districtScope
+          ? ' <span class="text-[10px] font-bold text-brand-dark bg-brand/10 rounded-full px-2 py-0.5 align-middle">' + esc(user.districtScope) + "</span>"
           : "");
+      var banner = document.getElementById("scopeBanner");
+      if (user.role === "district") {
+        banner.textContent = "Viewing " + (user.districtScope || "your district") +
+          " — you can see validated tickets forwarded to you and mark them Under Review. Resolved is handled by the division.";
+        banner.classList.remove("hidden");
+      } else {
+        banner.classList.add("hidden");
+      }
       document.getElementById("bellBtn").classList.remove("hidden");
       loadNotifications();
       loadAll();
@@ -578,15 +633,16 @@
       renderChart("chartStatus", {
         type: "bar",
         data: {
-          labels: ["Pending", "Under Review", "Resolved"],
+          labels: ["Pending", "Validated", "Under Review", "Resolved"],
           datasets: [{
             label: "Tickets",
             data: [
               stats.counts.Pending || 0,
+              stats.counts.Validated || 0,
               stats.counts["Under Review"] || 0,
               stats.counts.Resolved || 0,
             ],
-            backgroundColor: ["#f59e0b", "#3b82f6", "#22c55e"],
+            backgroundColor: ["#f59e0b", "#8b5cf6", "#3b82f6", "#22c55e"],
             borderRadius: 4,
             maxBarThickness: 28,
           }],
@@ -683,6 +739,7 @@
         var cards = [
           ["Total", data.stats.total, "bg-white"],
           ["Pending", counts.Pending || 0, "bg-amber-50"],
+          ["Validated", counts.Validated || 0, "bg-violet-50"],
           ["Under Review", counts["Under Review"] || 0, "bg-blue-50"],
           ["Resolved", counts.Resolved || 0, "bg-green-50"],
         ];
@@ -718,21 +775,45 @@
         emptyState.classList.remove("hidden");
       } else {
         emptyState.classList.add("hidden");
+        var canManage = currentUser && (currentUser.role === "superadmin" || currentUser.role === "division");
+        var isDistrict = currentUser && currentUser.role === "district";
+        var statusOptions = currentUser && currentUser.role === "superadmin"
+          ? ["Validated", "Under Review", "Resolved"]
+          : ["Under Review", "Resolved"];
         tbody.innerHTML = rows.map(function (t) {
-          var statusCell = archived
-            ? '<td class="px-3 py-3"><span class="inline-block rounded-full bg-gray-200 text-gray-500 font-semibold text-[11px] px-2 py-0.5">Archived</span></td>'
-            : '<td class="px-3 py-3"><select data-id="' + t.id + '" class="status-select rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold ' +
-            (STATUS_COLORS[t.status] || "") + '">' +
-            ["Pending", "Under Review", "Resolved"].map(function (s) {
-              return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + ">" + s + "</option>";
-            }).join("") +
-            "</select></td>";
-          var actionsCell = archived
-            ? '<td class="px-3 py-3"></td>'
-            : '<td class="px-3 py-3"><button type="button" data-id="' + t.id + '" class="save-btn hidden rounded-lg bg-brand text-white font-bold px-3 py-1 text-xs hover:bg-brand-dark transition">Save</button>' +
-            (t.status === "Resolved"
-              ? ' <button type="button" data-id="' + t.id + '" class="archive-btn rounded-lg bg-amber-600 text-white font-bold px-3 py-1 text-xs hover:bg-amber-700 transition">Archive</button>'
-              : "") + '</td>';
+          var statusCell;
+          if (archived) {
+            statusCell = '<td class="px-3 py-3"><span class="inline-block rounded-full bg-gray-200 text-gray-500 font-semibold text-[11px] px-2 py-0.5">Archived</span></td>';
+          } else if (isDistrict) {
+            statusCell = '<td class="px-3 py-3"><span class="inline-block rounded-full ' +
+              (STATUS_COLORS[t.status] || "bg-gray-100 text-gray-700") + ' font-semibold text-[11px] px-2 py-0.5">' + esc(t.status) + "</span></td>";
+          } else if (t.status === "Pending") {
+            statusCell = '<td class="px-3 py-3"><span class="inline-block rounded-full bg-amber-100 text-amber-800 font-semibold text-[11px] px-2 py-0.5">Pending</span></td>';
+          } else {
+            statusCell = '<td class="px-3 py-3"><select data-id="' + t.id + '" class="status-select rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold ' +
+              (STATUS_COLORS[t.status] || "") + '">' +
+              statusOptions.map(function (s) {
+                return '<option value="' + s + '"' + (s === t.status ? " selected" : "") + ">" + s + "</option>";
+              }).join("") +
+              "</select></td>";
+          }
+          var actionsCell;
+          if (archived) {
+            actionsCell = '<td class="px-3 py-3"></td>';
+          } else if (isDistrict) {
+            actionsCell = '<td class="px-3 py-3">' +
+              (t.status === "Validated"
+                ? '<button type="button" data-id="' + t.id + '" class="under-review-btn rounded-lg bg-blue-600 text-white font-bold px-3 py-1 text-xs hover:bg-blue-700 transition">Under Review</button>'
+                : "") + "</td>";
+          } else {
+            actionsCell = '<td class="px-3 py-3">' +
+              (t.status === "Pending"
+                ? '<button type="button" data-id="' + t.id + '" class="validate-btn rounded-lg bg-violet-600 text-white font-bold px-3 py-1 text-xs hover:bg-violet-700 transition">Validate</button> '
+                : '<button type="button" data-id="' + t.id + '" class="save-btn hidden rounded-lg bg-brand text-white font-bold px-3 py-1 text-xs hover:bg-brand-dark transition">Save</button> ') +
+              (t.status === "Resolved"
+                ? '<button type="button" data-id="' + t.id + '" class="archive-btn rounded-lg bg-amber-600 text-white font-bold px-3 py-1 text-xs hover:bg-amber-700 transition">Archive</button>'
+                : "") + "</td>";
+          }
           return '<tr class="border-t border-gray-100 hover:bg-brand/5 cursor-pointer align-top" onclick="rowClick(event, ' + t.id + ', ' + (archived ? 1 : 0) + ')">' +
             '<td class="px-3 py-3 font-mono text-xs font-semibold text-brand">' + esc(t.arta_reference_no) + "</td>" +
             '<td class="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">' + esc((t.created_at || "").slice(0, 16)) + "</td>" +
@@ -740,6 +821,7 @@
             '<td class="px-3 py-3 text-xs hidden lg:table-cell max-w-[180px] truncate" title="' + esc(t.email_address) + '">' + (Number(t.is_anonymous) ? '<span class="text-gray-300">&mdash;</span>' : esc(t.email_address)) + "</td>" +
             '<td class="px-3 py-3 text-xs hidden lg:table-cell">' + esc(t.school_name) + "</td>" +
             '<td class="px-3 py-3 text-xs hidden md:table-cell">' + esc(t.district || "—") + "</td>" +
+            '<td class="px-3 py-3 text-xs hidden xl:table-cell">' + esc(t.forwarded_to || "—") + "</td>" +
             '<td class="px-3 py-3 text-xs">' + esc(NATURE_LABELS[t.nature_of_request] || t.nature_of_request) + "</td>" +
             '<td class="px-3 py-3 text-xs max-w-[220px] truncate hidden xl:table-cell" title="' + esc(t.description) + '">' + esc((t.description || "").slice(0, 90)) + (t.description && t.description.length > 90 ? "…" : "") + "</td>" +
             statusCell + actionsCell +
@@ -788,6 +870,22 @@
         document.getElementById("mPersonName").textContent = data.ticket.person_name || "—";
         document.getElementById("mPersonPosition").textContent = data.ticket.person_position || "—";
         document.getElementById("mDistrict").textContent = data.ticket.district || "—";
+        var isDistrict = currentUser && currentUser.role === "district";
+        var mForwardedWrap = document.getElementById("mForwardedWrap");
+        if (data.ticket.forwarded_to) {
+          document.getElementById("mForwarded").textContent = data.ticket.forwarded_to;
+          mForwardedWrap.classList.remove("hidden");
+        } else {
+          mForwardedWrap.classList.add("hidden");
+        }
+        var mValidatedWrap = document.getElementById("mValidatedWrap");
+        if (data.ticket.validated_at) {
+          document.getElementById("mValidated").textContent =
+            (data.ticket.validated_by || "—") + " · " + (data.ticket.validated_at || "").slice(0, 16);
+          mValidatedWrap.classList.remove("hidden");
+        } else {
+          mValidatedWrap.classList.add("hidden");
+        }
 
         var evWrap = document.getElementById("mEvidenceWrap");
         if (data.ticket.evidence_file_url) {
@@ -814,9 +912,9 @@
         document.getElementById("emailToInput").value = "";
         document.getElementById("emailToInput").placeholder = "Email address to send the intake form…";
         document.getElementById("emailSendBtn").disabled = false;
-        document.getElementById("emailSendWrap").classList.toggle("hidden", isAnon || isArchived);
-        document.getElementById("intakeLinkBtn").classList.toggle("hidden", isArchived);
-        document.getElementById("savePdfBtn").classList.toggle("hidden", isArchived);
+        document.getElementById("emailSendWrap").classList.toggle("hidden", isAnon || isArchived || isDistrict);
+        document.getElementById("intakeLinkBtn").classList.toggle("hidden", isArchived || isDistrict);
+        document.getElementById("savePdfBtn").classList.toggle("hidden", isArchived || isDistrict);
         document.getElementById("ticketModal").classList.remove("hidden");
         logActivity("viewed_ticket", data.ticket.arta_reference_no);
       }).catch(function (e) {
@@ -958,6 +1056,26 @@
     });
 
     document.getElementById("ticketsBody").addEventListener("click", function (e) {
+      if (e.target.classList.contains("validate-btn")) {
+        openValidateModal(e.target.dataset.id);
+        return;
+      }
+      if (e.target.classList.contains("under-review-btn")) {
+        var id = e.target.dataset.id;
+        askPassword(
+          "Mark as Under Review",
+          "This ticket will move from Validated to Under Review for your district. Enter your password to confirm.",
+          function (password) {
+            return api("/api/admin/tickets/" + id, "PATCH", { status: "Under Review", password: password })
+              .then(function () {
+                toast("Ticket marked as Under Review.", true);
+                loadStats();
+                loadTickets();
+              });
+          }
+        );
+        return;
+      }
       if (e.target.classList.contains("save-btn")) {
         var id = e.target.dataset.id;
         var sel = document.querySelector('.status-select[data-id="' + id + '"]');
@@ -1006,6 +1124,44 @@
     });
 
     var pendingPasswordAction = null;
+    var validateTicketId = null;
+
+    function openValidateModal(id) {
+      validateTicketId = id;
+      var err = document.getElementById("validateError");
+      err.classList.add("hidden");
+      document.getElementById("validatePassword").value = "";
+      document.getElementById("validateForwardTo").innerHTML = '<option value="">Loading districts…</option>';
+      document.getElementById("validateTicketInfo").textContent = "Loading…";
+      document.getElementById("validateConfirm").disabled = true;
+      document.getElementById("validateModal").classList.remove("hidden");
+      api("/api/admin/tickets/" + id).then(function (data) {
+        var t = data.ticket;
+        document.getElementById("validateTicketInfo").textContent =
+          t.arta_reference_no + " — " + (Number(t.is_anonymous) ? "Anonymous" : (t.full_name || "")) +
+          (t.school_name ? " — " + t.school_name : "");
+        return api("/api/schools").then(function (schools) {
+          var opts = schools.districts.map(function (d) {
+            return '<option value="' + esc(d.name) + '"' + (d.name === t.district ? " selected" : "") + ">" + esc(d.name) + "</option>";
+          });
+          document.getElementById("validateForwardTo").innerHTML =
+            '<option value="" disabled>Select district / office…</option>' + opts.join("");
+          document.getElementById("validateConfirm").disabled = false;
+        });
+      }).catch(function (err) {
+        if (err.message === "unauthorized") {
+          showLogin("Session expired. Sign in again.");
+          closeValidateModal();
+        } else {
+          document.getElementById("validateTicketInfo").textContent = err.message || "Could not load ticket.";
+        }
+      });
+    }
+
+    function closeValidateModal() {
+      document.getElementById("validateModal").classList.add("hidden");
+      validateTicketId = null;
+    }
 
     function downloadBase64Pdf(base64, filename) {
       var a = document.createElement("a");
@@ -1064,6 +1220,44 @@
     document.getElementById("passwordCancel").addEventListener("click", closePasswordModal);
     document.getElementById("passwordClose").addEventListener("click", closePasswordModal);
     document.getElementById("passwordBackdrop").addEventListener("click", closePasswordModal);
+
+    document.getElementById("validateCancel").addEventListener("click", closeValidateModal);
+    document.getElementById("validateClose").addEventListener("click", closeValidateModal);
+    document.getElementById("validateBackdrop").addEventListener("click", closeValidateModal);
+    document.getElementById("validateConfirm").addEventListener("click", function () {
+      var btn = this;
+      var err = document.getElementById("validateError");
+      var forwardTo = document.getElementById("validateForwardTo").value;
+      var password = document.getElementById("validatePassword").value;
+      if (!forwardTo) {
+        err.textContent = "Pick the district or office to forward to.";
+        err.classList.remove("hidden");
+        return;
+      }
+      if (!password) {
+        err.textContent = "Enter your password.";
+        err.classList.remove("hidden");
+        return;
+      }
+      btn.disabled = true;
+      err.classList.add("hidden");
+      api("/api/admin/tickets/" + validateTicketId + "/validate", "POST", { forward_to: forwardTo, password: password })
+        .then(function () {
+          toast("Ticket validated and forwarded to " + forwardTo + ".", true);
+          closeValidateModal();
+          loadAll();
+        })
+        .catch(function (err) {
+          btn.disabled = false;
+          if (err.message === "unauthorized") {
+            showLogin("Session expired. Sign in again.");
+            closeValidateModal();
+          } else {
+            err.textContent = err.message || "Could not validate the ticket.";
+            err.classList.remove("hidden");
+          }
+        });
+    });
     document.getElementById("passwordInput").addEventListener("keydown", function (e) {
       if (e.key === "Enter") document.getElementById("passwordConfirm").click();
     });

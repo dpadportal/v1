@@ -12,7 +12,10 @@ export interface Env {
 export const NATURE_VALUES = ["complaint", "suggestions", "praise", "inquiry", "request"] as const;
 export type NatureOfRequest = (typeof NATURE_VALUES)[number];
 
-export const TICKET_STATUSES = ["Pending", "Under Review", "Resolved"] as const;
+export const ADMIN_ROLES = ["superadmin", "division", "district"] as const;
+export type AdminRole = (typeof ADMIN_ROLES)[number];
+
+export const TICKET_STATUSES = ["Pending", "Validated", "Under Review", "Resolved"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
 export interface Ticket {

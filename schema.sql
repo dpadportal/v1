@@ -14,7 +14,11 @@ CREATE TABLE tickets (
   description TEXT NOT NULL,
   privacy_consent INTEGER NOT NULL DEFAULT 0 CHECK (privacy_consent IN (0, 1)),
   is_anonymous INTEGER NOT NULL DEFAULT 0 CHECK (is_anonymous IN (0, 1)),
-  status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Under Review', 'Resolved')),
+  status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Validated', 'Under Review', 'Resolved')),
+  validated_by TEXT,
+  validated_at TEXT,
+  forwarded_to TEXT,
+  forwarded_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   evidence_file_name TEXT,
@@ -28,18 +32,23 @@ CREATE TABLE tickets (
 CREATE INDEX idx_tickets_email ON tickets (email_address);
 CREATE INDEX idx_tickets_status ON tickets (status);
 CREATE INDEX idx_tickets_created_at ON tickets (created_at);
+CREATE INDEX idx_tickets_forwarded_to ON tickets (forwarded_to);
 
 CREATE TABLE IF NOT EXISTS admin_users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL UNIQUE,
   password_salt TEXT NOT NULL,
   password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'superadmin')),
+  role TEXT NOT NULL DEFAULT 'division' CHECK (role IN ('superadmin', 'division', 'district')),
+  district_scope TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
   recovery_question TEXT,
   recovery_answer_salt TEXT,
   recovery_answer_hash TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_single_superadmin ON admin_users (role) WHERE role = 'superadmin';
 
 CREATE TABLE IF NOT EXISTS activity_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,6 +78,7 @@ CREATE TABLE IF NOT EXISTS ticket_archive (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   archived_at TEXT NOT NULL DEFAULT (datetime('now')),
+  forwarded_to TEXT,
   evidence_file_name TEXT,
   evidence_file_url TEXT,
   evidence_mime TEXT,

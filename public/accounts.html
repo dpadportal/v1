@@ -77,6 +77,8 @@
           <tr class="bg-gray-50 text-left text-gray-600 uppercase text-xs tracking-wide">
             <th class="px-6 py-3">Username</th>
             <th class="px-6 py-3">Role</th>
+            <th class="px-6 py-3">District / Office</th>
+            <th class="px-6 py-3">Status</th>
             <th class="px-6 py-3">Created</th>
             <th class="px-6 py-3">Actions</th>
           </tr>
@@ -98,6 +100,21 @@
             <label for="newPassword" class="block text-sm font-semibold text-gray-700 mb-1">Password (min. 8 characters)</label>
             <input id="newPassword" type="password" required autocomplete="new-password" minlength="8"
               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+          </div>
+          <div>
+            <label for="newRole" class="block text-sm font-semibold text-gray-700 mb-1">Role</label>
+            <select id="newRole" required
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+              <option value="division">Division</option>
+              <option value="district">District</option>
+            </select>
+          </div>
+          <div id="newScopeWrap" class="hidden">
+            <label for="newScope" class="block text-sm font-semibold text-gray-700 mb-1">District / Office</label>
+            <select id="newScope" required
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+              <option value="">Loading districts…</option>
+            </select>
           </div>
           <button type="submit"
             class="rounded-lg bg-brand text-white font-bold px-5 py-2 text-sm hover:bg-brand-dark transition disabled:opacity-50">
@@ -205,6 +222,8 @@
       window.location.href = "/admin";
     }
 
+    var ROLE_LABELS = { superadmin: "Super Admin", division: "Division", district: "District" };
+
     async function loadAccounts() {
       var data = await api("/api/admin/accounts");
       document.getElementById("accountCount").textContent = data.accounts.length + " account(s)";
@@ -213,10 +232,13 @@
         var isMe = a.username === currentUsername;
         return '<tr class="border-t border-gray-100">' +
           '<td class="px-6 py-3 font-semibold">' + esc(a.username) + (isMe ? ' <span class="text-xs font-bold text-brand bg-brand/10 rounded-full px-2 py-0.5">you</span>' : "") + "</td>" +
-          '<td class="px-6 py-3 text-xs">' + esc(a.role) + (a.role === "superadmin" ? ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5">locked</span>' : "") + "</td>" +
+          '<td class="px-6 py-3 text-xs">' + esc(ROLE_LABELS[a.role] || a.role) + (a.role === "superadmin" ? ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5">locked</span>' : "") + "</td>" +
+          '<td class="px-6 py-3 text-xs text-gray-600">' + esc(a.district_scope || "—") + "</td>" +
+          '<td class="px-6 py-3 text-xs">' + (a.is_active ? '<span class="rounded-full bg-green-100 text-green-800 font-semibold text-[11px] px-2 py-0.5">Active</span>' : '<span class="rounded-full bg-gray-200 text-gray-600 font-semibold text-[11px] px-2 py-0.5">Disabled</span>') + "</td>" +
           '<td class="px-6 py-3 text-xs text-gray-600">' + esc((a.created_at || "").slice(0, 16)) + "</td>" +
           '<td class="px-6 py-3">' +
-          (isMe || currentRole !== "superadmin" ? "" : '<button type="button" data-id="' + a.id + '" data-name="' + esc(a.username) + '" class="del-btn rounded-lg bg-red-50 text-red-700 border border-red-200 font-semibold px-3 py-1 text-xs hover:bg-red-100 transition">Delete</button>') +
+          (isMe || currentRole !== "superadmin" ? "" : '<button type="button" data-id="' + a.id + '" data-name="' + esc(a.username) + '" data-active="' + (a.is_active ? "1" : "0") + '" class="toggle-btn rounded-lg bg-gray-100 text-gray-700 border border-gray-300 font-semibold px-3 py-1 text-xs hover:bg-gray-200 transition">' + (a.is_active ? "Disable" : "Enable") + '</button> ') +
+          (isMe || currentRole !== "superadmin" || a.role === "superadmin" ? "" : '<button type="button" data-id="' + a.id + '" data-name="' + esc(a.username) + '" class="del-btn rounded-lg bg-red-50 text-red-700 border border-red-200 font-semibold px-3 py-1 text-xs hover:bg-red-100 transition">Delete</button>') +
           "</td>" +
           "</tr>";
       }).join("");
@@ -240,6 +262,15 @@
             : "");
         if (currentRole === "superadmin") {
           document.getElementById("recoverySection").classList.remove("hidden");
+          api("/api/schools").then(function (schools) {
+            document.getElementById("newScope").innerHTML =
+              '<option value="" disabled selected>Select district / office…</option>' +
+              schools.districts.map(function (d) {
+                return '<option value="' + esc(d.name) + '">' + esc(d.name) + "</option>";
+              }).join("");
+          }).catch(function () {
+            document.getElementById("newScope").innerHTML = '<option value="">Districts unavailable</option>';
+          });
         } else {
           document.getElementById("addSection").classList.add("hidden");
           document.getElementById("viewOnlyNotice").classList.remove("hidden");
@@ -265,11 +296,24 @@
       }
     }
 
+    document.getElementById("newRole").addEventListener("change", function () {
+      var wrap = document.getElementById("newScopeWrap");
+      wrap.classList.toggle("hidden", this.value !== "district");
+      if (this.value !== "district") document.getElementById("newScope").required = false;
+      else document.getElementById("newScope").required = true;
+    });
+
     document.getElementById("addForm").addEventListener("submit", function (e) {
       e.preventDefault();
       var username = document.getElementById("newUsername").value.trim();
       var password = document.getElementById("newPassword").value;
-      api("/api/admin/accounts", "POST", { username: username, password: password }).then(function () {
+      var role = document.getElementById("newRole").value;
+      var districtScope = role === "district" ? document.getElementById("newScope").value : null;
+      if (role === "district" && !districtScope) {
+        toast("Pick the district or office for this account.", false);
+        return;
+      }
+      api("/api/admin/accounts", "POST", { username: username, password: password, role: role, district_scope: districtScope }).then(function () {
         toast("Account " + username + " created.", true);
         document.getElementById("newUsername").value = "";
         document.getElementById("newPassword").value = "";
@@ -305,16 +349,29 @@
     });
 
     document.getElementById("accountsBody").addEventListener("click", function (e) {
-      if (!e.target.classList.contains("del-btn")) return;
-      var name = e.target.dataset.name;
-      if (!confirm('Delete account "' + name + '"? This cannot be undone.')) return;
-      api("/api/admin/accounts/" + e.target.dataset.id, "DELETE").then(function () {
-        toast("Account " + name + " deleted.", true);
-        loadAccounts();
-      }).catch(function (err) {
-        if (err.message === "unauthorized") logout();
-        else toast(err.message, false);
-      });
+      if (e.target.classList.contains("del-btn")) {
+        var name = e.target.dataset.name;
+        if (!confirm('Delete account "' + name + '"? This cannot be undone.')) return;
+        api("/api/admin/accounts/" + e.target.dataset.id, "DELETE").then(function () {
+          toast("Account " + name + " deleted.", true);
+          loadAccounts();
+        }).catch(function (err) {
+          if (err.message === "unauthorized") logout();
+          else toast(err.message, false);
+        });
+      }
+      if (e.target.classList.contains("toggle-btn")) {
+        var name = e.target.dataset.name;
+        var active = e.target.dataset.active === "1";
+        if (!confirm('Disable account "' + name + '"? They will no longer be able to sign in.')) return;
+        api("/api/admin/accounts/" + e.target.dataset.id, "PATCH", { is_active: active ? 0 : 1 }).then(function () {
+          toast("Account " + name + (active ? " disabled." : " enabled."), true);
+          loadAccounts();
+        }).catch(function (err) {
+          if (err.message === "unauthorized") logout();
+          else toast(err.message, false);
+        });
+      }
     });
 
     document.getElementById("logoutBtn").addEventListener("click", logout);

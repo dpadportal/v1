@@ -1,12 +1,13 @@
 ﻿import { Hono } from "hono";
 import type { Context } from "hono";
-import type { Env, TicketStatus } from "../types";
+import type { AdminRole, Env, TicketStatus } from "../types";
 import { TICKET_STATUSES } from "../types";
-import { adminGuard, logActivity } from "../lib/auth";
+import { adminGuard, hasRole, isScopeAllowed, logActivity, type AdminUser } from "../lib/auth";
 import { clientIp } from "../lib/rate-limit";
 import { createRateLimiter } from "../lib/rate-limit";
 import { EMAIL_RE, MAX_LENGTHS } from "../lib/validators";
 import { hashPassword, verifyPassword } from "../lib/password";
+import { listDistricts } from "../lib/schools";
 import {
   sendIntakeFormEmail,
   sendIntakeFormLinkEmail,
@@ -17,6 +18,22 @@ import { getPrefs, getPref, setPrefs, PREF_DEFAULTS } from "../lib/prefs";
 import { createSnapshot, dumpDatabase, getSnapshot, listSnapshots, restoreSnapshot } from "../lib/backup";
 
 const admin = new Hono<{ Bindings: Env }>();
+
+function scopeWhere(auth: AdminUser): { sql: string; params: Array<string | number> } {
+  if (auth.role !== "district") return { sql: "", params: [] };
+  return {
+    sql: "forwarded_to = ? COLLATE NOCASE AND status <> 'Pending'",
+    params: [auth.districtScope ?? ""],
+  };
+}
+
+async function districtFromReference(c: Context<{ Bindings: Env }>, name: string): Promise<string | null> {
+  const wanted = name.trim().toLowerCase();
+  if (!wanted) return null;
+  const districts = await listDistricts(c.env.DB);
+  const found = districts.find((d) => d.toLowerCase() === wanted);
+  return found ?? null;
+}
 
 function escapeLike(q: string): string {
   return q.replace(/[\\%_]/g, (ch) => `\\${ch}`);
@@ -51,36 +68,50 @@ admin.get("/stats", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
 
+  const scope = scopeWhere(auth.user);
+  const scopeSql = scope.sql ? `WHERE ${scope.sql}` : "";
+
   const rows = await c.env.DB.prepare(
-    `SELECT status, COUNT(*) AS count FROM tickets GROUP BY status`
-  ).all();
+    `SELECT status, COUNT(*) AS count FROM tickets ${scopeSql} GROUP BY status`
+  )
+    .bind(...scope.params)
+    .all();
 
   const counts: Record<string, number> = {};
   for (const row of rows.results) counts[String(row.status)] = Number(row.count);
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
   const districtRows = await c.env.DB.prepare(
-    `SELECT district, COUNT(*) AS count FROM tickets GROUP BY district`
-  ).all();
+    `SELECT district, COUNT(*) AS count FROM tickets ${scopeSql} GROUP BY district`
+  )
+    .bind(...scope.params)
+    .all();
   const districtCounts: Record<string, number> = {};
   for (const row of districtRows.results) {
     districtCounts[String(row.district ?? "None")] = Number(row.count);
   }
 
   const natureRows = await c.env.DB.prepare(
-    `SELECT nature_of_request, COUNT(*) AS count FROM tickets GROUP BY nature_of_request`
-  ).all();
+    `SELECT nature_of_request, COUNT(*) AS count FROM tickets ${scopeSql} GROUP BY nature_of_request`
+  )
+    .bind(...scope.params)
+    .all();
   const natureCounts: Record<string, number> = {};
   for (const row of natureRows.results) {
     natureCounts[String(row.nature_of_request)] = Number(row.count);
   }
 
+  const dailyWhere = scope.sql
+    ? `${scope.sql} AND created_at >= datetime('now', '-13 days')`
+    : "created_at >= datetime('now', '-13 days')";
   const dailyRows = await c.env.DB.prepare(
     `SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS count
      FROM tickets
-     WHERE created_at >= datetime('now', '-13 days')
+     WHERE ${dailyWhere}
      GROUP BY day ORDER BY day`
-  ).all();
+  )
+    .bind(...scope.params)
+    .all();
   const daily: Array<{ day: string; count: number }> = dailyRows.results.map((row) => ({
     day: String(row.day),
     count: Number(row.count),
@@ -95,6 +126,7 @@ admin.get("/tickets", async (c) => {
 
   const status = c.req.query("status");
   const q = (c.req.query("q") ?? "").trim().slice(0, 100);
+  const forwardedTo = (c.req.query("forwarded_to") ?? "").trim().slice(0, 100);
   const limit = Math.min(Math.max(Number(c.req.query("limit")) || 50, 1), 200);
   const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
 
@@ -106,6 +138,15 @@ admin.get("/tickets", async (c) => {
   if (!archived && status) {
     where.push("status = ?");
     params.push(status);
+  }
+  const scope = scopeWhere(auth.user);
+  if (scope.sql) {
+    where.push(scope.sql);
+    params.push(...scope.params);
+  }
+  if (forwardedTo && auth.user.role !== "district") {
+    where.push("forwarded_to = ? COLLATE NOCASE");
+    params.push(forwardedTo);
   }
   if (q) {
     const like = `%${escapeLike(q)}%`;
@@ -125,6 +166,7 @@ admin.get("/tickets", async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
             district, school_name, person_name, person_position, nature_of_request, description, status, created_at, updated_at, is_anonymous,
+            forwarded_to, validated_by, validated_at, forwarded_at,
             evidence_file_name, evidence_file_url, evidence_mime, evidence_size, evidence_thumbnail_url, intake_file_url
      FROM ${table} ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
   )
@@ -154,6 +196,9 @@ admin.patch("/tickets/:id", async (c) => {
   if (!TICKET_STATUSES.includes(status as TicketStatus)) {
     return c.json({ ok: false, error: "Invalid status." }, 400);
   }
+  if (status === "Pending") {
+    return c.json({ ok: false, error: "Pending is set when the submission is received." }, 400);
+  }
 
   const password = String(body.password ?? "");
   if (!password) return c.json({ ok: false, error: "Enter your password to confirm the status change." }, 400);
@@ -161,12 +206,29 @@ admin.patch("/tickets/:id", async (c) => {
   if (verified !== true) return verified;
 
   const row = await c.env.DB.prepare(
-    `SELECT arta_reference_no, email_address, is_anonymous FROM tickets WHERE id = ?`
+    `SELECT arta_reference_no, email_address, is_anonymous, status, forwarded_to FROM tickets WHERE id = ?`
   )
     .bind(id)
-    .first();
+    .first<{ arta_reference_no: string; email_address: string; is_anonymous: number; status: string; forwarded_to: string | null }>();
   if (!row) {
     return c.json({ ok: false, error: "Ticket not found." }, 404);
+  }
+
+  const user = auth.user;
+  if (user.role === "district") {
+    if (!isScopeAllowed(user, row.forwarded_to)) {
+      return c.json({ ok: false, error: "This ticket is not assigned to your district." }, 403);
+    }
+    if (status !== "Under Review") {
+      return c.json({ ok: false, error: "District accounts can only mark tickets as Under Review." }, 403);
+    }
+    if (row.status !== "Validated") {
+      return c.json({ ok: false, error: "Only Validated tickets can be marked as Under Review." }, 400);
+    }
+  } else if (user.role === "division") {
+    if (row.status === "Pending") {
+      return c.json({ ok: false, error: "Validate the ticket before changing its status." }, 400);
+    }
   }
 
   await c.env.DB.prepare(
@@ -183,8 +245,8 @@ admin.patch("/tickets/:id", async (c) => {
   ) {
     await sendStatusUpdateEmail(
       c.env,
-      String(row.email_address),
-      String(row.arta_reference_no),
+      row.email_address,
+      row.arta_reference_no,
       status as TicketStatus
     );
   }
@@ -192,6 +254,80 @@ admin.patch("/tickets/:id", async (c) => {
   await logActivity(c.env, auth.user.username, "status_update", `${row.arta_reference_no} -> ${status}`, clientIp(c));
 
   return c.json({ ok: true, status });
+});
+
+admin.post("/tickets/:id/validate", async (c) => {
+  const auth = await adminGuard(c);
+  if ("error" in auth) return auth.error;
+  if (!hasRole(auth.user, "superadmin", "division")) {
+    return c.json({ ok: false, error: "Only division or superadmin accounts can validate tickets." }, 403);
+  }
+
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.json({ ok: false, error: "Invalid ticket id." }, 400);
+  }
+
+  let body: { forward_to?: unknown; password?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "Invalid request payload." }, 400);
+  }
+
+  const forwardTo = String(body.forward_to ?? "").trim();
+  if (!forwardTo) {
+    return c.json({ ok: false, error: "Select the district/office to forward this ticket to." }, 400);
+  }
+  const canonical = await districtFromReference(c, forwardTo);
+  if (!canonical) {
+    return c.json({ ok: false, error: "Select a valid district/office from the reference." }, 400);
+  }
+
+  const password = String(body.password ?? "");
+  if (!password) return c.json({ ok: false, error: "Enter your password to confirm the validation." }, 400);
+  const verified = await verifyCurrentPassword(c, auth.user.username, password);
+  if (verified !== true) return verified;
+
+  const row = await c.env.DB.prepare(
+    `SELECT arta_reference_no, email_address, is_anonymous, status FROM tickets WHERE id = ?`
+  )
+    .bind(id)
+    .first<{ arta_reference_no: string; email_address: string; is_anonymous: number; status: string }>();
+  if (!row) {
+    return c.json({ ok: false, error: "Ticket not found." }, 404);
+  }
+  if (row.status !== "Pending") {
+    return c.json({ ok: false, error: "Only Pending tickets can be validated." }, 400);
+  }
+
+  await c.env.DB.prepare(
+    `UPDATE tickets
+     SET status = 'Validated', validated_by = ?, validated_at = datetime('now'),
+         forwarded_to = ?, forwarded_at = datetime('now'), updated_at = datetime('now')
+     WHERE id = ?`
+  )
+    .bind(auth.user.username, canonical, id)
+    .run();
+
+  const prefs = await getPrefs(c.env);
+  if (
+    !Number(row.is_anonymous) &&
+    row.email_address &&
+    prefs.email_notifications === "1"
+  ) {
+    await sendStatusUpdateEmail(c.env, row.email_address, row.arta_reference_no, "Validated");
+  }
+
+  await logActivity(
+    c.env,
+    auth.user.username,
+    "ticket_validate",
+    `${row.arta_reference_no} -> Validated (forwarded to ${canonical})`,
+    clientIp(c)
+  );
+
+  return c.json({ ok: true, status: "Validated", forwardedTo: canonical });
 });
 
 admin.get("/tickets/export", async (c) => {
@@ -207,6 +343,11 @@ admin.get("/tickets/export", async (c) => {
     where.push("status = ?");
     params.push(status);
   }
+  const scope = scopeWhere(auth.user);
+  if (scope.sql) {
+    where.push(scope.sql);
+    params.push(...scope.params);
+  }
   if (q) {
     const like = `%${escapeLike(q)}%`;
     where.push(
@@ -219,7 +360,7 @@ admin.get("/tickets/export", async (c) => {
   const rows = await c.env.DB.prepare(
     `SELECT arta_reference_no, full_name, cellphone_number, email_address,
             district, school_name, person_name, person_position, nature_of_request, description, status, created_at, updated_at,
-            evidence_file_name, evidence_file_url
+            forwarded_to, evidence_file_name, evidence_file_url
      FROM tickets ${whereSql} ORDER BY created_at DESC LIMIT 10000`
   )
     .bind(...params)
@@ -245,6 +386,7 @@ admin.get("/tickets/export", async (c) => {
     "status",
     "created_at",
     "updated_at",
+    "forwarded_to",
     "evidence_file_name",
     "evidence_file_url",
   ].join(",");
@@ -264,6 +406,7 @@ admin.get("/tickets/export", async (c) => {
       csvEscape(row.status),
       csvEscape(row.created_at),
       csvEscape(row.updated_at),
+      csvEscape(row.forwarded_to),
       csvEscape(row.evidence_file_name),
       csvEscape(row.evidence_file_url),
     ].join(",")
@@ -301,13 +444,26 @@ admin.get("/tickets/:id", async (c) => {
   const row = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, full_name, cellphone_number, email_address,
             district, school_name, person_name, person_position, nature_of_request, description, status, created_at, updated_at, is_anonymous,
+            forwarded_to, validated_by, validated_at, forwarded_at,
             evidence_file_name, evidence_file_url, evidence_mime, evidence_size, evidence_thumbnail_url, intake_file_url
      FROM ${table} WHERE id = ?`
   )
     .bind(id)
-    .first();
+    .first<{
+      id: number;
+      arta_reference_no: string;
+      status: string;
+      forwarded_to: string | null;
+      is_anonymous: number;
+    }>();
   if (!row) {
     return c.json({ ok: false, error: "Ticket not found." }, 404);
+  }
+  if (auth.user.role === "district") {
+    const visible = row.status !== "Pending" && isScopeAllowed(auth.user, row.forwarded_to);
+    if (!visible) {
+      return c.json({ ok: false, error: "Ticket not found." }, 404);
+    }
   }
 
   return c.json({ ok: true, archived, ticket: row });
@@ -316,6 +472,9 @@ admin.get("/tickets/:id", async (c) => {
 admin.post("/tickets/:id/email", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
+  if (auth.user.role === "district") {
+    return c.json({ ok: false, error: "District accounts cannot send intake forms." }, 403);
+  }
 
   const id = Number(c.req.param("id"));
   if (!Number.isInteger(id) || id <= 0) {
@@ -395,6 +554,9 @@ function base64ToBytes(base64: string): ArrayBuffer {
 admin.post("/tickets/:id/intake-archive", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
+  if (auth.user.role === "district") {
+    return c.json({ ok: false, error: "District accounts cannot archive intake forms." }, 403);
+  }
 
   const id = Number(c.req.param("id"));
   if (!Number.isInteger(id) || id <= 0) {
@@ -443,6 +605,9 @@ admin.post("/tickets/:id/intake-archive", async (c) => {
 admin.post("/tickets/:id/archive", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
+  if (auth.user.role === "district") {
+    return c.json({ ok: false, error: "District accounts cannot archive tickets." }, 403);
+  }
 
   const id = Number(c.req.param("id"));
   if (!Number.isInteger(id) || id <= 0) {
@@ -489,10 +654,10 @@ admin.post("/tickets/:id/archive", async (c) => {
   await c.env.DB.prepare(
     `INSERT INTO ticket_archive
       (arta_reference_no, full_name, cellphone_number, email_address, district, school_name, person_name, person_position, nature_of_request,
-       description, privacy_consent, status, created_at, updated_at, archived_at,
+       description, privacy_consent, status, created_at, updated_at, archived_at, forwarded_to,
        evidence_file_name, evidence_file_url, evidence_mime, evidence_size, evidence_thumbnail_url,
        intake_file_url, is_anonymous)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Resolved', ?, ?, datetime('now'),
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Resolved', ?, ?, datetime('now'), ?,
        ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
@@ -509,6 +674,7 @@ admin.post("/tickets/:id/archive", async (c) => {
       row.privacy_consent,
       row.created_at,
       row.updated_at,
+      row.forwarded_to,
       row.evidence_file_name,
       row.evidence_file_url,
       row.evidence_mime,
@@ -538,6 +704,9 @@ admin.post("/tickets/:id/archive", async (c) => {
 admin.get("/preferences", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
+  if (!hasRole(auth.user, "superadmin")) {
+    return c.json({ ok: false, error: "Only the superadmin can manage preferences." }, 403);
+  }
 
   return c.json({ ok: true, preferences: await getPrefs(c.env) });
 });
@@ -545,6 +714,9 @@ admin.get("/preferences", async (c) => {
 admin.put("/preferences", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
+  if (!hasRole(auth.user, "superadmin")) {
+    return c.json({ ok: false, error: "Only the superadmin can manage preferences." }, 403);
+  }
 
   let body: { preferences?: unknown };
   try {
@@ -608,6 +780,9 @@ admin.get("/about", async (c) => {
 admin.get("/system-status", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
+  if (!hasRole(auth.user, "superadmin", "division")) {
+    return c.json({ ok: false, error: "District accounts cannot view system status." }, 403);
+  }
 
   const countFn = async (table: string): Promise<number> => {
     const r = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first<{ n: number }>();
@@ -678,9 +853,12 @@ const USERNAME_RE = /^[A-Za-z0-9_.-]{3,30}$/;
 admin.get("/accounts", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
+  if (!hasRole(auth.user, "superadmin")) {
+    return c.json({ ok: false, error: "Only the superadmin can manage accounts." }, 403);
+  }
 
   const rows = await c.env.DB.prepare(
-    `SELECT id, username, role, recovery_question, created_at FROM admin_users ORDER BY id`
+    `SELECT id, username, role, district_scope, is_active, recovery_question, created_at FROM admin_users ORDER BY id`
   ).all();
 
   return c.json({ ok: true, accounts: rows.results });
@@ -689,11 +867,11 @@ admin.get("/accounts", async (c) => {
 admin.post("/accounts", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
-  if (auth.user.role !== "superadmin") {
+  if (!hasRole(auth.user, "superadmin")) {
     return c.json({ ok: false, error: "Only the superadmin can create accounts." }, 403);
   }
 
-  let body: { username?: unknown; password?: unknown };
+  let body: { username?: unknown; password?: unknown; role?: unknown; district_scope?: unknown };
   try {
     body = await c.req.json();
   } catch {
@@ -702,11 +880,30 @@ admin.post("/accounts", async (c) => {
 
   const username = String(body.username ?? "").trim();
   const password = String(body.password ?? "");
+  const role = String(body.role ?? "").trim() as AdminRole;
+  const districtScope = String(body.district_scope ?? "").trim();
+
   if (!USERNAME_RE.test(username)) {
     return c.json({ ok: false, error: "Username must be 3-30 characters (letters, numbers, . _ -)." }, 400);
   }
   if (password.length < 8 || password.length > 100) {
     return c.json({ ok: false, error: "Password must be 8-100 characters." }, 400);
+  }
+  if (role === "superadmin") {
+    return c.json({ ok: false, error: "There can only be one superadmin." }, 400);
+  }
+  if (role !== "division" && role !== "district") {
+    return c.json({ ok: false, error: "Select an account level: division or district." }, 400);
+  }
+  let scopeValue: string | null = null;
+  if (role === "district") {
+    if (!districtScope) {
+      return c.json({ ok: false, error: "Select the district/office for this account." }, 400);
+    }
+    scopeValue = await districtFromReference(c, districtScope);
+    if (!scopeValue) {
+      return c.json({ ok: false, error: "Select a valid district/office from the reference." }, 400);
+    }
   }
 
   const existing = await c.env.DB.prepare(
@@ -720,12 +917,12 @@ admin.post("/accounts", async (c) => {
 
   const { salt, hash } = await hashPassword(password);
   await c.env.DB.prepare(
-    `INSERT INTO admin_users (username, password_salt, password_hash, role) VALUES (?, ?, ?, 'admin')`
+    `INSERT INTO admin_users (username, password_salt, password_hash, role, district_scope) VALUES (?, ?, ?, ?, ?)`
   )
-    .bind(username, salt, hash)
+    .bind(username, salt, hash, role, scopeValue)
     .run();
 
-  await logActivity(c.env, auth.user.username, "account_create", username, clientIp(c));
+  await logActivity(c.env, auth.user.username, "account_create", `${username} (${role}${scopeValue ? `, ${scopeValue}` : ""})`, clientIp(c));
 
   return c.json({ ok: true, message: `Account ${username} created.` });
 });
@@ -782,7 +979,14 @@ admin.patch("/accounts/:id", async (c) => {
     return c.json({ ok: false, error: "Invalid account id." }, 400);
   }
 
-  let body: { password?: unknown; recovery_question?: unknown; recovery_answer?: unknown };
+  let body: {
+    password?: unknown;
+    recovery_question?: unknown;
+    recovery_answer?: unknown;
+    role?: unknown;
+    district_scope?: unknown;
+    is_active?: unknown;
+  };
   try {
     body = await c.req.json();
   } catch {
@@ -793,24 +997,30 @@ admin.patch("/accounts/:id", async (c) => {
     `SELECT id, username, role FROM admin_users WHERE id = ?`
   )
     .bind(id)
-    .first<{ id: number; username: string; role: string }>();
+    .first<{ id: number; username: string; role: AdminRole }>();
   if (!row) {
     return c.json({ ok: false, error: "Account not found." }, 404);
   }
 
   const hasPassword = body.password !== undefined;
   const hasRecovery = body.recovery_question !== undefined || body.recovery_answer !== undefined;
+  const hasRoleChange = body.role !== undefined;
+  const hasScopeChange = body.district_scope !== undefined;
+  const hasActiveChange = body.is_active !== undefined;
 
-  if (!hasPassword && !hasRecovery) {
+  if (!hasPassword && !hasRecovery && !hasRoleChange && !hasScopeChange && !hasActiveChange) {
     return c.json({ ok: false, error: "Nothing to update." }, 400);
   }
+
+  const isSuperadminRow = row.role === "superadmin";
+  const isSelf = auth.user.username === row.username;
 
   if (hasPassword) {
     const password = String(body.password ?? "");
     if (password.length < 8 || password.length > 100) {
       return c.json({ ok: false, error: "Password must be 8-100 characters." }, 400);
     }
-    if (auth.user.role !== "superadmin" && auth.user.username !== row.username) {
+    if (!hasRole(auth.user, "superadmin") && !isSelf) {
       return c.json({ ok: false, error: "You can only change your own password." }, 403);
     }
     const { salt, hash } = await hashPassword(password);
@@ -823,11 +1033,7 @@ admin.patch("/accounts/:id", async (c) => {
   }
 
   if (hasRecovery) {
-    if (
-      auth.user.role !== "superadmin" ||
-      row.role !== "superadmin" ||
-      auth.user.username !== row.username
-    ) {
+    if (!hasRole(auth.user, "superadmin") || !isSuperadminRow || !isSelf) {
       return c.json({ ok: false, error: "Only the superadmin can set their own recovery question." }, 403);
     }
     const question = String(body.recovery_question ?? "").trim();
@@ -845,6 +1051,84 @@ admin.patch("/accounts/:id", async (c) => {
       .bind(question, salt, hash, id)
       .run();
     await logActivity(c.env, auth.user.username, "recovery_set", "Recovery question configured", clientIp(c));
+  }
+
+  if (hasRoleChange || hasScopeChange || hasActiveChange) {
+    if (!hasRole(auth.user, "superadmin")) {
+      return c.json({ ok: false, error: "Only the superadmin can change account levels." }, 403);
+    }
+    if (isSuperadminRow) {
+      return c.json({ ok: false, error: "The superadmin account's level and status cannot be changed." }, 400);
+    }
+
+    let role: AdminRole = row.role;
+    let scopeValue: string | null = null;
+
+    if (hasRoleChange) {
+      role = String(body.role ?? "").trim() as AdminRole;
+      if (role === "superadmin") {
+        return c.json({ ok: false, error: "There can only be one superadmin." }, 400);
+      }
+      if (role !== "division" && role !== "district") {
+        return c.json({ ok: false, error: "Select an account level: division or district." }, 400);
+      }
+    }
+
+    if (hasScopeChange) {
+      const districtScope = String(body.district_scope ?? "").trim();
+      if (role === "district") {
+        if (!districtScope) {
+          return c.json({ ok: false, error: "Select the district/office for this account." }, 400);
+        }
+        scopeValue = await districtFromReference(c, districtScope);
+        if (!scopeValue) {
+          return c.json({ ok: false, error: "Select a valid district/office from the reference." }, 400);
+        }
+      }
+    } else if (role === "district") {
+      const current = await c.env.DB.prepare(
+        `SELECT district_scope FROM admin_users WHERE id = ?`
+      )
+        .bind(id)
+        .first<{ district_scope: string | null }>();
+      scopeValue = current?.district_scope ?? null;
+      if (!scopeValue) {
+        return c.json({ ok: false, error: "Select the district/office for this account." }, 400);
+      }
+    }
+
+    let isActive: number | null = null;
+    if (hasActiveChange) {
+      const active = String(body.is_active ?? "");
+      if (active !== "0" && active !== "1") {
+        return c.json({ ok: false, error: "Invalid account status." }, 400);
+      }
+      if (active === "0" && isSelf) {
+        return c.json({ ok: false, error: "You cannot disable your own account." }, 400);
+      }
+      isActive = Number(active);
+    }
+
+    const sets: string[] = ["role = ?"];
+    const params: Array<string | number | null> = [role];
+    if (hasScopeChange || role === "district") {
+      sets.push("district_scope = ?");
+      params.push(scopeValue);
+    }
+    if (isActive !== null) {
+      sets.push("is_active = ?");
+      params.push(isActive);
+    }
+    params.push(id);
+    await c.env.DB.prepare(`UPDATE admin_users SET ${sets.join(", ")} WHERE id = ?`)
+      .bind(...params)
+      .run();
+
+    const changes: string[] = [];
+    if (hasRoleChange) changes.push(`role=${role}`);
+    if (hasScopeChange) changes.push(`scope=${scopeValue ?? "none"}`);
+    if (isActive !== null) changes.push(`active=${isActive}`);
+    await logActivity(c.env, auth.user.username, "account_update", `${row.username} (${changes.join(", ")})`, clientIp(c));
   }
 
   return c.json({ ok: true, message: "Account updated." });
@@ -874,6 +1158,8 @@ admin.get("/me", async (c) => {
     user: {
       username: auth.user.username,
       role: auth.user.role,
+      districtScope: auth.user.districtScope,
+      isActive: auth.user.isActive,
       recovery_question_set: Boolean(row?.recovery_question),
     },
   });
@@ -901,6 +1187,9 @@ admin.post("/activity", async (c) => {
 admin.get("/activity-log", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
+  if (!hasRole(auth.user, "superadmin", "division")) {
+    return c.json({ ok: false, error: "District accounts cannot view the activity log." }, 403);
+  }
 
   const limit = Math.min(Math.max(Number(c.req.query("limit")) || 50, 1), 200);
   const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
@@ -921,6 +1210,9 @@ admin.get("/activity-log", async (c) => {
 admin.get("/activity-log/export", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
+  if (!hasRole(auth.user, "superadmin", "division")) {
+    return c.json({ ok: false, error: "District accounts cannot view the activity log." }, 403);
+  }
 
   const rows = await c.env.DB.prepare(
     `SELECT created_at, username, action, detail, ip FROM activity_log ORDER BY id DESC LIMIT 10000`
@@ -1055,10 +1347,16 @@ admin.get("/notifications", async (c) => {
   const auth = await adminGuard(c);
   if ("error" in auth) return auth.error;
 
+  const scope = scopeWhere(auth.user);
+  const recentWhere = scope.sql
+    ? `${scope.sql} AND created_at >= datetime('now', '-1 day')`
+    : "created_at >= datetime('now', '-1 day')";
   const recent = await c.env.DB.prepare(
     `SELECT id, arta_reference_no, status, created_at FROM tickets
-     WHERE created_at >= datetime('now', '-1 day') ORDER BY id DESC LIMIT 20`
-  ).all();
+     WHERE ${recentWhere} ORDER BY id DESC LIMIT 20`
+  )
+    .bind(...scope.params)
+    .all();
 
   const snapshots = await listSnapshots(c.env);
   const lastArchive = await c.env.KV.get("meta:last_archive");

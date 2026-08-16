@@ -4,6 +4,7 @@ const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 
 const STATUS_LABELS: Record<TicketStatus, string> = {
   Pending: "Pending",
+  Validated: "Validated",
   "Under Review": "Under Review",
   Resolved: "Resolved",
 };

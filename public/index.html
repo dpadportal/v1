@@ -530,6 +530,7 @@ Please provide the required information to process your feedback. We will ensure
           "success.close": "Close",
           "success.track": "Track Ticket",
           "status.Pending": "Pending",
+          "status.Validated": "Validated",
           "status.Under Review": "Under Review",
           "status.Resolved": "Resolved",
           "err.emailInvalid": "Please enter a valid email address.",
@@ -597,6 +598,7 @@ Please provide the required information to process your feedback. We will ensure
           "success.close": "Isara",
           "success.track": "Sundan ang Ticket",
           "status.Pending": "Nakabinbin",
+          "status.Validated": "Na-validate",
           "status.Under Review": "Sinusuri",
           "status.Resolved": "Nalutas",
           "err.emailInvalid": "Pakilagay ang wastong email address.",
@@ -1084,10 +1086,10 @@ Please provide the required information to process your feedback. We will ensure
           var badge = document.getElementById("trackStatusBadge");
           badge.textContent = t("status." + ticket.status);
           badge.className = "px-3 py-1 rounded-full text-sm font-bold text-white " +
-            (ticket.status === "Pending" ? "bg-amber-500" : ticket.status === "Under Review" ? "bg-sky-500" : "bg-emerald-600");
+            (ticket.status === "Pending" ? "bg-amber-500" : ticket.status === "Validated" ? "bg-violet-600" : ticket.status === "Under Review" ? "bg-sky-500" : "bg-emerald-600");
           var box = document.getElementById("trackResultBox");
           box.className = "rounded-xl border p-4 space-y-2 " +
-            (ticket.status === "Pending" ? "border-amber-300 bg-amber-50" : ticket.status === "Under Review" ? "border-sky-300 bg-sky-50" : "border-emerald-300 bg-emerald-50");
+            (ticket.status === "Pending" ? "border-amber-300 bg-amber-50" : ticket.status === "Validated" ? "border-violet-300 bg-violet-50" : ticket.status === "Under Review" ? "border-sky-300 bg-sky-50" : "border-emerald-300 bg-emerald-50");
           document.getElementById("trackResult").classList.remove("hidden");
         } catch (e3) {
           showError(trackError, t("err.generic"));
