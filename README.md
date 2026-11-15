@@ -1,6 +1,6 @@
 # ARTA Submission Form (Concern / Complaint / Request)
 
-A bilingual (English/Tagalog) submission and tracking platform deployed on Cloudflare Workers + D1 + KV, with ARTA-compliant reference numbers (`ARTA-YYYY-XXXXX`).
+A bilingual (English/Tagalog) submission and tracking platform deployed on Cloudflare Workers + D1 + KV, with ARTA-compliant reference numbers (`DPAD-YYYY-XXXXX`).
 
 ## Stack
 
@@ -18,6 +18,18 @@ npm run db:init        # create the tickets table in local D1
 npm run dev            # wrangler dev at http://localhost:8787
 ```
 
+> The npm scripts invoke `node` directly (rather than `.bin` shims) so they work even when the repo lives under a folder whose name contains `&` (e.g. `R&D FILES`) on Windows.
+
+### Tests
+
+```bash
+npm run typecheck        # type-check src
+npm run typecheck:test   # type-check the test suite
+npm test                 # run the vitest suite (Workers pool: real D1/KV/R2)
+```
+
+The suite covers validators, crypto, password hashing, rate limiting, DPAD reference generation, preferences, backups/restore, the school reference (districts, district filter, submit validation with the `school_other` fallback), and end-to-end API flows (OTP → CAPTCHA → submit → track, anonymous submissions, evidence upload to R2, CSRF blocking, and admin status updates with activity logging).
+
 The OTP code is logged to the terminal (no email needed while developing). To enable real email, create a `.dev.vars` file:
 
 ```
@@ -33,7 +45,12 @@ Visit `/admin` on the deployed site (Basic Auth, no separate page server):
 
 - **Sign in:** username/password from the `ADMIN_USER` / `ADMIN_PASSWORD` secrets
 - **Features:** stats cards (total per status), filter by status + free-text search, pagination, full ticket details, and status changes — each change emails the submitter a bilingual status update
-- **Roles:** the env-configured `ADMIN_USER` bootstraps as the **superadmin** (auto-promoted on first login if no superadmin exists). Only the superadmin can create/delete accounts or set their own recovery question; superadmin accounts are undeletable and recoverable via a challenge question.
+- **Roles:** three account roles drive what each sign-in can see and do:
+  - **superadmin** (one only, enforced): full access — all tickets, every status change, validation, account management, preferences, backups, logs.
+  - **division** (e.g. CID / SGOD / OSDS staff): sees all tickets, **validates** Pending tickets and forwards them to a district or office (`Validate &amp; forward` button), sets Under Review / Resolved. Cannot change a Pending ticket directly.
+  - **district**: sees only Validated tickets forwarded to its district/office (never Pending), and can mark them **Under Review** only. Resolving and validation are division/superadmin-only.
+  - The env-configured `ADMIN_USER` bootstraps as the **superadmin** (auto-promoted on first login if no superadmin exists). Only the superadmin can create/delete/disable accounts (roles `division` / `district` with a district/office scope) or set their own recovery question; superadmin accounts are undeletable and recoverable via a challenge question. Disabled accounts cannot sign in.
+- **Ticket lifecycle:** `Pending` → (division/superadmin validates & forwards) → `Validated` → (district marks) → `Under Review` → (division/superadmin) → `Resolved`. Every status change and validation requires the acting admin's password and emails the submitter a bilingual status update.
 - **Recovery:** `Forgot password?` on the login page fetches the superadmin's security question, then resets the password when the answer matches.
 - **Activity log:** `/logs` shows audit events (sign-ins, modal views, status changes, exports, account ops) with a **Download report (CSV)** button. Modal views are recorded client-side via `/api/admin/activity`.
 - **Notifications (bell in the header):** shows new submissions from the last 24 hours (click a reference to open it), the monthly **archive reminder** (archiving should happen before the bi-annual cleanup — acknowledge with "I archived data", which snoozes it for 28 days), and backup status.
@@ -54,14 +71,17 @@ wrangler secret put ADMIN_PASSWORD
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/send-otp` | POST | Validates email, stores a 6-digit code in KV (5-min TTL, 60-s cooldown), emails it |
+| `/api/send-otp` | POST | Validates email, stores a 6-digit code in KV (5-min TTL, 60-s cooldown, 5/10-min per-IP limit), emails it |
 | `/api/captcha` | POST | Generates a math problem, stores the hashed answer in KV, returns `{ sessionId, problem }` |
-| `/api/submit` | POST | Validates payload, verifies OTP + CAPTCHA, inserts ticket into D1, emails the ARTA reference |
-| `/api/track/:ref` | GET | Looks up a ticket by `ARTA-YYYY-XXXXX` and returns its status |
+| `/api/submit` | POST | Validates payload, verifies OTP + CAPTCHA, inserts ticket into D1, emails the DPAD reference |
+| `/api/track/:ref` | GET | Looks up a ticket by `DPAD-YYYY-XXXXX` and returns its status |
+| `/api/schools` | GET | Lists school-reference districts (derived from the `schools` table) |
+| `/api/schools?district=` | GET | Lists schools/offices within a district (60/min per-IP limit) |
 | `/api/admin/tickets` | GET | Lists tickets (filter: `status`, `q`; page: `limit`, `offset`) — requires Basic Auth |
 | `/api/admin/tickets/export` | GET | Downloads matching tickets as CSV (respects `status` + `q` filters) — requires Basic Auth |
 | `/api/admin/tickets/:id` | GET | Returns one full ticket — requires Basic Auth |
-| `/api/admin/tickets/:id` | PATCH | Updates a ticket's status and emails the submitter — requires Basic Auth |
+| `/api/admin/tickets/:id` | PATCH | Updates a ticket's status (role-scoped transition matrix) and emails the submitter — requires Basic Auth |
+| `/api/admin/tickets/:id/validate` | POST | Validates a Pending ticket and forwards it to a district/office (`forward_to`, `password`) — **division or superadmin only** |
 | `/api/admin/tickets/:id/email` | POST | Emails the filled intake form (PDF attachment) to an address — requires Basic Auth |
 | `/api/admin/stats` | GET | Counts per status — requires Basic Auth |
 | `/api/admin/login` | POST | Validates credentials and records a sign-in event — requires Basic Auth |
@@ -81,6 +101,14 @@ wrangler secret put ADMIN_PASSWORD
 | `/api/admin/backup/download` | GET | Downloads the full database dump as JSON — **superadmin only** |
 | `/api/admin/backup/restore` | POST | Restores a snapshot (safety snapshot taken first) — **superadmin only** |
 | `/api/admin/archive` | POST | Acknowledges the monthly archive reminder (28-day snooze) — **superadmin only** |
+
+## Security
+
+- **CSRF protection:** every state-changing `/api/*` request (POST/PUT/PATCH/DELETE) is rejected unless its `Origin`/`Referer` matches the request host. Blocks cross-site form/fetch attacks against the admin API and submission endpoints.
+- **Rate limiting:** submissions (5/min per IP), OTP requests (5/10-min per IP, plus a 60-s per-email cooldown), CAPTCHA generation, ticket lookups, sign-in attempts, password confirmation, and recovery endpoints are all rate-limited via KV.
+- **Unguessable storage keys:** evidence and intake PDFs are stored in R2 under keys containing a random UUID, so files are not enumerable by reference number alone.
+- **Password hashing:** PBKDF2-SHA256 (100k iterations) with per-user salts; OTP and CAPTCHA answers are stored as SHA-256 hashes, never plaintext.
+- **PII masking:** the public tracking endpoint returns masked names/emails only.
 
 ## Deploying
 
@@ -111,7 +139,7 @@ npm run deploy
 
 ### Continuous deployment (GitHub Actions)
 
-Pushes to `main` trigger an automatic deploy via `.github/workflows/deploy.yml`.
+Pushes to `main` trigger an automatic deploy via `.github/workflows/deploy.yml`. The workflow runs `npm ci`, `npm run typecheck`, `npm run typecheck:test`, and `npm test` before deploying — a failing check blocks the deploy. It does **not** run database migrations; apply `schema.sql` manually.
 Add these repository secrets on GitHub (Settings → Secrets and variables → Actions):
 
 - `CLOUDFLARE_API_TOKEN` — Cloudflare API token with `Workers Scripts: Edit` permission
@@ -132,10 +160,23 @@ The site is installable as an app on any device:
 
 ## Data model (`tickets`)
 
-`arta_reference_no` (unique, `ARTA-2026-00001`), `full_name` (optional), `cellphone_number` (optional), `email_address`, `district` (optional), `school_name`, `nature_of_request` (`complaint` / `suggestions` / `praise`), `description`, `privacy_consent`, `status` (`Pending` / `Under Review` / `Resolved`), `created_at`, `updated_at`.
+`arta_reference_no` (unique, `DPAD-2026-00001`), `full_name` (optional), `cellphone_number` (optional), `email_address`, `district` (optional), `school_name`, `nature_of_request` (`complaint` / `inquiry` / `request` / `suggestions` / `praise`), `description`, `privacy_consent`, `status` (`Pending` / `Validated` / `Under Review` / `Resolved`), `validated_by`, `validated_at`, `forwarded_to`, `forwarded_at`, `created_at`, `updated_at`.
+
+### School reference (`schools`)
+
+The submission form populates the district dropdown from the `schools` table, and after a district is chosen, offers only the schools/offices that belong to it (plus an *Other / Not in the list* free-text option). Submissions are validated server-side: with a district selected, `school_name` must exist in that district unless the `school_other=1` flag is sent.
+
+Seed the table from `data/directory.csv` (DepEd export: `SCHOOL ID, SCHOOL NAME, CD, DISTRICT, SCHOOL EMAIL`; Windows-1252 encoded):
+
+```bash
+npm run seed:schools           # reads data/directory.csv, writes data/seed-schools.sql
+wrangler d1 execute arta-db --remote --file=data/seed-schools.sql
+```
+
+The script trims/normalizes names, fixes known district typos (`Riza` → `Rizal`, `Penaranda` → `Peñaranda`), drops empty rows, dedupes by `(district, school_name)` / school ID, and reports conflicts. Migration `migrations/007-schools.sql` creates the table.
 
 Status starts as `Pending`; update it in D1 to reflect progress:
 
 ```sql
-UPDATE tickets SET status = 'Resolved', updated_at = datetime('now') WHERE arta_reference_no = 'ARTA-2026-00001';
+UPDATE tickets SET status = 'Resolved', updated_at = datetime('now') WHERE arta_reference_no = 'DPAD-2026-00001';
 ```

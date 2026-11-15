@@ -20,6 +20,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
+    :root { color-scheme: light; }
+    select { color-scheme: light; }
+    option { color: #111827; background: #ffffff; }
     body {
       font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
       background: linear-gradient(rgba(248, 250, 248, 0.92), rgba(248, 250, 248, 0.92)),
@@ -77,6 +80,8 @@
           <tr class="bg-gray-50 text-left text-gray-600 uppercase text-xs tracking-wide">
             <th class="px-6 py-3">Username</th>
             <th class="px-6 py-3">Role</th>
+            <th class="px-6 py-3">District / Office</th>
+            <th class="px-6 py-3">Status</th>
             <th class="px-6 py-3">Created</th>
             <th class="px-6 py-3">Actions</th>
           </tr>
@@ -99,8 +104,30 @@
             <input id="newPassword" type="password" required autocomplete="new-password" minlength="8"
               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
           </div>
-          <button type="submit"
-            class="rounded-lg bg-brand text-white font-bold px-5 py-2 text-sm hover:bg-brand-dark transition disabled:opacity-50">
+          <div>
+            <label for="newRole" class="block text-sm font-semibold text-gray-700 mb-1">Role</label>
+            <select id="newRole" required
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand">
+              <option value="division">Division</option>
+              <option value="district">District</option>
+            </select>
+          </div>
+          <div id="newScopeWrap" class="hidden">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">District / Office</label>
+            <button type="button" id="scopeButton"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed">
+              <span id="scopeButtonText" class="text-gray-400">Select district / office…</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 text-gray-500 shrink-0">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <div id="scopeMenu" class="hidden mt-1 w-full max-h-64 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg z-50"></div>
+            <p id="newScopeError" class="hidden text-sm font-semibold text-red-600 mt-1"></p>
+            <button id="newScopeRetry" type="button"
+              class="hidden rounded-lg bg-gray-200 font-semibold px-3 py-1.5 text-xs mt-2 hover:bg-gray-300 transition">Retry loading districts</button>
+          </div>
+          <button id="createAccountBtn" type="submit" disabled
+            class="rounded-lg bg-brand text-white font-bold px-5 py-2 text-sm hover:bg-brand-dark transition disabled:opacity-50 disabled:cursor-not-allowed">
             Create account
           </button>
         </form>
@@ -186,11 +213,12 @@
       return { "Authorization": "Basic " + auth, "Content-Type": "application/json" };
     }
 
-    async function api(path, method, body) {
+    async function api(path, method, body, signal) {
       var res = await fetch(path, {
         method: method || "GET",
         headers: authHeaders(),
         body: body ? JSON.stringify(body) : undefined,
+        signal: signal,
       });
       if (res.status === 401 || res.status === 503) throw new Error("unauthorized");
       var data = await res.json().catch(function () { return {}; });
@@ -205,6 +233,8 @@
       window.location.href = "/admin";
     }
 
+    var ROLE_LABELS = { superadmin: "Super Admin", division: "Division", district: "District" };
+
     async function loadAccounts() {
       var data = await api("/api/admin/accounts");
       document.getElementById("accountCount").textContent = data.accounts.length + " account(s)";
@@ -213,10 +243,13 @@
         var isMe = a.username === currentUsername;
         return '<tr class="border-t border-gray-100">' +
           '<td class="px-6 py-3 font-semibold">' + esc(a.username) + (isMe ? ' <span class="text-xs font-bold text-brand bg-brand/10 rounded-full px-2 py-0.5">you</span>' : "") + "</td>" +
-          '<td class="px-6 py-3 text-xs">' + esc(a.role) + (a.role === "superadmin" ? ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5">locked</span>' : "") + "</td>" +
+          '<td class="px-6 py-3 text-xs">' + esc(ROLE_LABELS[a.role] || a.role) + (a.role === "superadmin" ? ' <span class="text-[10px] font-bold text-white bg-brand rounded-full px-2 py-0.5">locked</span>' : "") + "</td>" +
+          '<td class="px-6 py-3 text-xs text-gray-600">' + esc(a.district_scope || "—") + "</td>" +
+          '<td class="px-6 py-3 text-xs">' + (a.is_active ? '<span class="rounded-full bg-green-100 text-green-800 font-semibold text-[11px] px-2 py-0.5">Active</span>' : '<span class="rounded-full bg-gray-200 text-gray-600 font-semibold text-[11px] px-2 py-0.5">Disabled</span>') + "</td>" +
           '<td class="px-6 py-3 text-xs text-gray-600">' + esc((a.created_at || "").slice(0, 16)) + "</td>" +
           '<td class="px-6 py-3">' +
-          (isMe || currentRole !== "superadmin" ? "" : '<button type="button" data-id="' + a.id + '" data-name="' + esc(a.username) + '" class="del-btn rounded-lg bg-red-50 text-red-700 border border-red-200 font-semibold px-3 py-1 text-xs hover:bg-red-100 transition">Delete</button>') +
+          (isMe || currentRole !== "superadmin" ? "" : '<button type="button" data-id="' + a.id + '" data-name="' + esc(a.username) + '" data-active="' + (a.is_active ? "1" : "0") + '" class="toggle-btn rounded-lg bg-gray-100 text-gray-700 border border-gray-300 font-semibold px-3 py-1 text-xs hover:bg-gray-200 transition">' + (a.is_active ? "Disable" : "Enable") + '</button> ') +
+          (isMe || currentRole !== "superadmin" || a.role === "superadmin" ? "" : '<button type="button" data-id="' + a.id + '" data-name="' + esc(a.username) + '" class="del-btn rounded-lg bg-red-50 text-red-700 border border-red-200 font-semibold px-3 py-1 text-xs hover:bg-red-100 transition">Delete</button>') +
           "</td>" +
           "</tr>";
       }).join("");
@@ -265,14 +298,120 @@
       }
     }
 
+    var scopeValue = "";
+    var scopeDistricts = [];
+
+    function updateCreateEnabled() {
+      var role = document.getElementById("newRole").value;
+      document.getElementById("createAccountBtn").disabled = role === "district" && !scopeValue;
+    }
+
+    function renderScopeMenu() {
+      document.getElementById("scopeMenu").innerHTML = scopeDistricts.map(function (d) {
+        return '<button type="button" data-value="' + esc(d) + '" class="scope-item w-full text-left px-3 py-2 text-sm text-gray-900 hover:bg-brand/10 hover:text-brand-dark transition">' + esc(d) + "</button>";
+      }).join("");
+    }
+
+    function selectScope(name) {
+      scopeValue = name;
+      var text = document.getElementById("scopeButtonText");
+      text.textContent = name;
+      text.className = "text-sm font-medium text-gray-900";
+      document.getElementById("scopeMenu").classList.add("hidden");
+      updateCreateEnabled();
+    }
+
+    function loadScopeOptions() {
+      var btn = document.getElementById("scopeButton");
+      var err = document.getElementById("newScopeError");
+      var retry = document.getElementById("newScopeRetry");
+      var text = document.getElementById("scopeButtonText");
+      err.classList.add("hidden");
+      retry.classList.add("hidden");
+      btn.disabled = true;
+      text.textContent = "Loading districts…";
+      text.className = "text-sm text-gray-500";
+      document.getElementById("scopeMenu").classList.add("hidden");
+      var ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, 10000);
+      api("/api/schools?v=" + Date.now(), "GET", null, ctrl.signal).then(function (schools) {
+        clearTimeout(timer);
+        scopeDistricts = schools.districts || [];
+        btn.disabled = false;
+        if (!scopeDistricts.length) throw new Error("The district list is empty.");
+        if (scopeValue && scopeDistricts.indexOf(scopeValue) === -1) scopeValue = "";
+        text.textContent = scopeValue || "Select district / office…";
+        text.className = scopeValue ? "text-sm font-medium text-gray-900" : "text-gray-400";
+        renderScopeMenu();
+        updateCreateEnabled();
+      }).catch(function (e) {
+        clearTimeout(timer);
+        btn.disabled = false;
+        scopeDistricts = [];
+        text.textContent = "Could not load districts";
+        text.className = "text-sm font-semibold text-red-600";
+        err.textContent = "Could not load the district list. Check your connection and retry.";
+        err.classList.remove("hidden");
+        retry.classList.remove("hidden");
+        renderScopeMenu();
+        updateCreateEnabled();
+      });
+    }
+
+    document.getElementById("newRole").addEventListener("change", function () {
+      var wrap = document.getElementById("newScopeWrap");
+      var isDistrict = this.value === "district";
+      wrap.classList.toggle("hidden", !isDistrict);
+      if (isDistrict) loadScopeOptions();
+      updateCreateEnabled();
+    });
+
+    document.getElementById("scopeButton").addEventListener("click", function () {
+      if (this.disabled) return;
+      var menu = document.getElementById("scopeMenu");
+      var open = !menu.classList.contains("hidden");
+      menu.classList.toggle("hidden", open);
+      if (!open) renderScopeMenu();
+    });
+
+    document.getElementById("scopeMenu").addEventListener("click", function (e) {
+      var item = e.target.closest(".scope-item");
+      if (item) selectScope(item.dataset.value);
+    });
+
+    document.addEventListener("click", function (e) {
+      var menu = document.getElementById("scopeMenu");
+      if (menu.classList.contains("hidden")) return;
+      if (e.target.closest("#scopeButton") || e.target.closest("#scopeMenu")) return;
+      menu.classList.add("hidden");
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") document.getElementById("scopeMenu").classList.add("hidden");
+    });
+
+    document.getElementById("newScopeRetry").addEventListener("click", loadScopeOptions);
+
     document.getElementById("addForm").addEventListener("submit", function (e) {
       e.preventDefault();
       var username = document.getElementById("newUsername").value.trim();
       var password = document.getElementById("newPassword").value;
-      api("/api/admin/accounts", "POST", { username: username, password: password }).then(function () {
+      var role = document.getElementById("newRole").value;
+      var districtScope = role === "district" ? scopeValue : null;
+      if (role === "district" && !districtScope) {
+        toast("Pick the district or office for this account.", false);
+        return;
+      }
+      api("/api/admin/accounts", "POST", { username: username, password: password, role: role, district_scope: districtScope }).then(function () {
         toast("Account " + username + " created.", true);
         document.getElementById("newUsername").value = "";
         document.getElementById("newPassword").value = "";
+        document.getElementById("newRole").value = "division";
+        document.getElementById("newScopeWrap").classList.add("hidden");
+        scopeValue = "";
+        document.getElementById("scopeButtonText").textContent = "Select district / office…";
+        document.getElementById("scopeButtonText").className = "text-gray-400";
+        document.getElementById("createAccountBtn").disabled = true;
         loadAccounts();
       }).catch(function (err) {
         if (err.message === "unauthorized") logout();
@@ -305,16 +444,29 @@
     });
 
     document.getElementById("accountsBody").addEventListener("click", function (e) {
-      if (!e.target.classList.contains("del-btn")) return;
-      var name = e.target.dataset.name;
-      if (!confirm('Delete account "' + name + '"? This cannot be undone.')) return;
-      api("/api/admin/accounts/" + e.target.dataset.id, "DELETE").then(function () {
-        toast("Account " + name + " deleted.", true);
-        loadAccounts();
-      }).catch(function (err) {
-        if (err.message === "unauthorized") logout();
-        else toast(err.message, false);
-      });
+      if (e.target.classList.contains("del-btn")) {
+        var name = e.target.dataset.name;
+        if (!confirm('Delete account "' + name + '"? This cannot be undone.')) return;
+        api("/api/admin/accounts/" + e.target.dataset.id, "DELETE").then(function () {
+          toast("Account " + name + " deleted.", true);
+          loadAccounts();
+        }).catch(function (err) {
+          if (err.message === "unauthorized") logout();
+          else toast(err.message, false);
+        });
+      }
+      if (e.target.classList.contains("toggle-btn")) {
+        var name = e.target.dataset.name;
+        var active = e.target.dataset.active === "1";
+        if (!confirm('Disable account "' + name + '"? They will no longer be able to sign in.')) return;
+        api("/api/admin/accounts/" + e.target.dataset.id, "PATCH", { is_active: active ? 0 : 1 }).then(function () {
+          toast("Account " + name + (active ? " disabled." : " enabled."), true);
+          loadAccounts();
+        }).catch(function (err) {
+          if (err.message === "unauthorized") logout();
+          else toast(err.message, false);
+        });
+      }
     });
 
     document.getElementById("logoutBtn").addEventListener("click", logout);

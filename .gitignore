@@ -8,3 +8,4 @@ dpac-signed-package-INFO.txt
 arta-db-backup.sql
 *.keystore
 signing-key-info.txt
+data/seed-schools.sql

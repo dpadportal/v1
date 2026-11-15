@@ -1,15 +1,27 @@
 import type { Context } from "hono";
-import type { Env } from "../types";
+import type { AdminRole, Env } from "../types";
 import { createRateLimiter, clientIp } from "./rate-limit";
 import { hashPassword, verifyPassword } from "./password";
 
 export interface AdminUser {
   id: number;
   username: string;
-  role: string;
+  role: AdminRole;
+  districtScope: string | null;
+  isActive: number;
 }
 
 export type AuthResult = { user: AdminUser } | { error: Response };
+
+export function hasRole(user: AdminUser, ...roles: AdminRole[]): boolean {
+  return roles.includes(user.role);
+}
+
+export function isScopeAllowed(user: AdminUser, forwardedTo: string | null): boolean {
+  if (user.role !== "district") return true;
+  if (!forwardedTo) return false;
+  return forwardedTo.toLowerCase() === String(user.districtScope ?? "").toLowerCase();
+}
 
 function safeEqual(a: string, b: string): boolean {
   const aBytes = new TextEncoder().encode(a);
@@ -26,6 +38,11 @@ function unauthorized(c: Context<{ Bindings: Env }>): Response {
 function rateLimited(c: Context<{ Bindings: Env }>): Response {
   c.status(429);
   return c.json({ ok: false, error: "Too many failed sign-in attempts. Try again later." });
+}
+
+function disabled(c: Context<{ Bindings: Env }>): Response {
+  c.status(403);
+  return c.json({ ok: false, error: "This account is disabled. Contact the superadmin." });
 }
 
 export async function logActivity(
@@ -84,18 +101,21 @@ export async function adminGuard(c: Context<{ Bindings: Env }>): Promise<AuthRes
   if (!username || !password) return { error: unauthorized(c) };
 
   const row = await c.env.DB.prepare(
-    `SELECT id, username, role, password_salt, password_hash FROM admin_users WHERE username = ?`
+    `SELECT id, username, role, district_scope, is_active, password_salt, password_hash FROM admin_users WHERE username = ?`
   )
     .bind(username)
     .first<{
       id: number;
       username: string;
-      role: string;
+      role: AdminRole;
+      district_scope: string | null;
+      is_active: number;
       password_salt: string;
       password_hash: string;
     }>();
 
   if (row) {
+    if (Number(row.is_active) === 0) return { error: disabled(c) };
     const ok = await verifyPassword(password, row.password_salt, row.password_hash);
     if (!ok) {
       const limiter = createRateLimiter(c.env.KV, "rl:admin-auth", 10, 300);
@@ -104,7 +124,15 @@ export async function adminGuard(c: Context<{ Bindings: Env }>): Promise<AuthRes
       return { error: unauthorized(c) };
     }
     await ensureSuperadmin(c.env, username);
-    return { user: { id: row.id, username: row.username, role: row.role } };
+    return {
+      user: {
+        id: row.id,
+        username: row.username,
+        role: row.role,
+        districtScope: row.district_scope,
+        isActive: Number(row.is_active),
+      },
+    };
   }
 
   const { ADMIN_USER, ADMIN_PASSWORD } = c.env;
@@ -116,12 +144,26 @@ export async function adminGuard(c: Context<{ Bindings: Env }>): Promise<AuthRes
   ) {
     await seedAdminUser(c.env, username, password);
     const seeded = await c.env.DB.prepare(
-      `SELECT id, username, role FROM admin_users WHERE username = ?`
+      `SELECT id, username, role, district_scope, is_active FROM admin_users WHERE username = ?`
     )
       .bind(username)
-      .first<{ id: number; username: string; role: string }>();
+      .first<{
+        id: number;
+        username: string;
+        role: AdminRole;
+        district_scope: string | null;
+        is_active: number;
+      }>();
     return seeded
-      ? { user: { id: seeded.id, username: seeded.username, role: seeded.role } }
+      ? {
+          user: {
+            id: seeded.id,
+            username: seeded.username,
+            role: seeded.role,
+            districtScope: seeded.district_scope,
+            isActive: Number(seeded.is_active),
+          },
+        }
       : { error: unauthorized(c) };
   }
 

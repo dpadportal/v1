@@ -10,11 +10,12 @@ import {
   MAX_LENGTHS,
 } from "../lib/validators";
 import { sha256 } from "../lib/crypto";
-import { generateArtaReference, isUniqueConstraintError } from "../lib/arta";
+import { generateDpadReference, isUniqueConstraintError } from "../lib/reference";
 import { sendConfirmationEmail } from "../lib/email";
 import { uploadEvidence } from "../lib/storage";
 import { getPrefs } from "../lib/prefs";
 import { createRateLimiter, clientIp } from "../lib/rate-limit";
+import { isKnownSchool, SCHOOL_OTHER_FLAG } from "../lib/schools";
 
 const OTP_MAX_ATTEMPTS = 5;
 const SUBMIT_RATE_LIMIT = 5;
@@ -142,6 +143,15 @@ submit.post("/", async (c) => {
     }
   }
   if (district.length > MAX_LENGTHS.district) return c.json({ ok: false, error: "District is too long." }, 400);
+  if (district) {
+    const isOther = form
+      ? form.get(SCHOOL_OTHER_FLAG) === "1"
+      : (body as Record<string, unknown>)[SCHOOL_OTHER_FLAG] === true ||
+        String((body as Record<string, unknown>)[SCHOOL_OTHER_FLAG] ?? "") === "1";
+    if (!isOther && !(await isKnownSchool(c.env.DB, district, schoolName))) {
+      return c.json({ ok: false, error: "School must be from the selected district." }, 400);
+    }
+  }
   if (personName.length > MAX_LENGTHS.personName) return c.json({ ok: false, error: "Person name is too long." }, 400);
   if (personPosition.length > MAX_LENGTHS.personPosition) return c.json({ ok: false, error: "Position is too long." }, 400);
 
@@ -185,7 +195,7 @@ submit.post("/", async (c) => {
   if (!captchaStored) {
     return c.json({ ok: false, error: "The verification question has expired. Refresh it and try again." }, 400);
   }
-  const captchaHash = await sha256(String(Number(captchaAnswer) || "").trim());
+  const captchaHash = await sha256(String(Number(captchaAnswer)));
   if (captchaStored !== captchaHash) {
     return c.json({ ok: false, error: "Incorrect answer to the verification question." }, 400);
   }
@@ -193,7 +203,7 @@ submit.post("/", async (c) => {
 
   let referenceNo: string | null = null;
   for (let attempt = 0; attempt < 5; attempt++) {
-    const ref = await generateArtaReference(DB);
+    const ref = await generateDpadReference(DB);
     try {
       const result = await DB.prepare(
         `INSERT INTO tickets

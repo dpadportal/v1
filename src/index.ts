@@ -4,15 +4,38 @@ import otp from "./routes/otp";
 import captcha from "./routes/captcha";
 import submit from "./routes/submit";
 import track from "./routes/track";
+import schools from "./routes/schools";
 import admin from "./routes/admin";
 
 const app = new Hono<{ Bindings: Env }>();
+
+app.use("/api/*", async (c, next) => {
+  const method = c.req.method;
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+    return next();
+  }
+  const origin = c.req.header("Origin") ?? c.req.header("Referer");
+  if (origin) {
+    let originHost = "";
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      return c.json({ ok: false, error: "Requests from this origin are blocked." }, 403);
+    }
+    const requestHost = new URL(c.req.url).host;
+    if (originHost !== requestHost) {
+      return c.json({ ok: false, error: "Cross-origin requests are blocked." }, 403);
+    }
+  }
+  return next();
+});
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 app.route("/api/send-otp", otp);
 app.route("/api/captcha", captcha);
 app.route("/api/submit", submit);
 app.route("/api/track", track);
+app.route("/api/schools", schools);
 app.route("/api/admin", admin);
 
 app.get("/admin", (c) => c.env.ASSETS.fetch(new Request(new URL("/admin.html", c.req.url), c.req.raw)));
@@ -35,6 +58,8 @@ app.get("/files/*", async (c) => {
 });
 
 app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));
+
+export { app };
 
 export default {
   fetch: app.fetch,

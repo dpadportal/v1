@@ -31,6 +31,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
+    :root { color-scheme: light; }
+    select { color-scheme: light; }
+    option { color: #111827; background: #ffffff; }
     body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
     .hero-bg {
       background: linear-gradient(rgba(248, 250, 248, 0.4), rgba(248, 250, 248, 0.4)),
@@ -281,48 +284,14 @@ Please provide the required information to process your feedback. We will ensure
               <label for="district" class="block text-sm font-semibold text-gray-700" data-i18n="form.district">District / Division (optional)</label>
               <select id="district" name="district" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-white focus:ring-2 focus:ring-brand focus:border-brand outline-none">
                 <option value="" data-i18n="form.selectDistrict">Select district / division</option>
-                <option value="Aliaga">Aliaga</option>
-                <option value="Bongabon">Bongabon</option>
-                <option value="Cabiao">Cabiao</option>
-                <option value="Carranglan">Carranglan</option>
-                <option value="Cuyapo East">Cuyapo East</option>
-                <option value="Cuyapo West">Cuyapo West</option>
-                <option value="Gabaldon">Gabaldon</option>
-                <option value="Gen. Mamerto Natividad (General Natividad)">Gen. Mamerto Natividad (General Natividad)</option>
-                <option value="General Tinio">General Tinio</option>
-                <option value="Guimba East">Guimba East</option>
-                <option value="Guimba West">Guimba West</option>
-                <option value="Jaen North">Jaen North</option>
-                <option value="Jaen South">Jaen South</option>
-                <option value="Laur">Laur</option>
-                <option value="Licab">Licab</option>
-                <option value="Llanera">Llanera</option>
-                <option value="Lupao">Lupao</option>
-                <option value="Nampicuan">Nampicuan</option>
-                <option value="Palayan City">Palayan City</option>
-                <option value="Pantabangan">Pantabangan</option>
-                <option value="Peñaranda">Peñaranda</option>
-                <option value="Quezon">Quezon</option>
-                <option value="Rizal">Rizal</option>
-                <option value="San Antonio">San Antonio</option>
-                <option value="San Isidro">San Isidro</option>
-                <option value="San Leonardo">San Leonardo</option>
-                <option value="Santa Rosa North">Santa Rosa North</option>
-                <option value="Santa Rosa South">Santa Rosa South</option>
-                <option value="Sto. Domingo">Sto. Domingo</option>
-                <option value="Talavera North">Talavera North</option>
-                <option value="Talavera South">Talavera South</option>
-                <option value="Talugtug">Talugtug</option>
-                <option value="Zaragoza">Zaragoza</option>
-                <option value="CID">CID</option>
-                <option value="SGOD">SGOD</option>
-                <option value="OSDS">OSDS</option>
               </select>
             </div>
             <div>
               <label for="school_name" class="block text-sm font-semibold text-gray-700" data-i18n="form.school">School / Office (related to your concern) *</label>
-              <input id="school_name" name="school_name" type="text" required maxlength="200"
-                placeholder="e.g. Nueva Ecija High School"
+              <select id="school_name" name="school_name" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-white focus:ring-2 focus:ring-brand focus:border-brand outline-none">
+                <option value="" data-i18n="form.selectSchool">Select school / office</option>
+              </select>
+              <input id="school_other_name" name="school_other_name" type="text" maxlength="200"
                 class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
             </div>
             <div>
@@ -412,7 +381,7 @@ Please provide the required information to process your feedback. We will ensure
         </div>
         <div class="px-6 py-5">
           <label for="trackRef" class="block text-sm font-semibold text-gray-700" data-i18n="track.label">DPAD Reference Number</label>
-          <input id="trackRef" type="text" placeholder="ARTA-2026-00001" autocapitalize="characters" spellcheck="false"
+          <input id="trackRef" type="text" placeholder="DPAD-2026-00001" autocapitalize="characters" spellcheck="false"
             class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 tracking-wide font-mono focus:ring-2 focus:ring-brand focus:border-brand outline-none" />
           <p id="trackError" class="error-text hidden"></p>
           <button id="trackBtn" type="button"
@@ -528,6 +497,9 @@ Please provide the required information to process your feedback. We will ensure
           "form.otp": "Verification Code (6 digits)",
           "form.district": "District / Division (optional)",
           "form.selectDistrict": "Select district / division",
+          "form.selectSchool": "Select school / office",
+          "form.schoolOther": "Other / Not in the list",
+          "form.schoolOtherPlaceholder": "Type the school or office name",
           "form.other": "Other",
           "form.school": "School / Office (related to your concern) *",
           "form.personName": "Name of Person Related to the Issue (optional)",
@@ -553,7 +525,7 @@ Please provide the required information to process your feedback. We will ensure
           "track.natureLabel": "Nature:",
           "track.dateLabel": "Submitted:",
           "track.notFound": "No ticket found with that reference number.",
-          "track.invalid": "Invalid format. Use ARTA-YYYY-XXXXX.",
+          "track.invalid": "Invalid format. Use DPAD-YYYY-XXXXX.",
           "success.title": "Submission Received",
           "success.body": "Your DPAD reference number is:",
           "success.note": "A confirmation email has been sent. Use this number to track your ticket.",
@@ -561,6 +533,7 @@ Please provide the required information to process your feedback. We will ensure
           "success.close": "Close",
           "success.track": "Track Ticket",
           "status.Pending": "Pending",
+          "status.Validated": "Validated",
           "status.Under Review": "Under Review",
           "status.Resolved": "Resolved",
           "err.emailInvalid": "Please enter a valid email address.",
@@ -592,6 +565,9 @@ Please provide the required information to process your feedback. We will ensure
           "form.otp": "Verification Code (6 na digit)",
           "form.district": "Distrito / Dibisyon (opsyonal)",
           "form.selectDistrict": "Pumili ng distrito / dibisyon",
+          "form.selectSchool": "Pumili ng paaralan / opisina",
+          "form.schoolOther": "Iba pa / Wala sa listahan",
+          "form.schoolOtherPlaceholder": "I-type ang pangalan ng paaralan o opisina",
           "form.other": "Iba pa",
           "form.school": "Paaralan / Opisina (may kaugnayan sa iyong isyu) *",
           "form.personName": "Pangalan ng Taong Kaugnay sa Isyu (opsyonal)",
@@ -617,7 +593,7 @@ Please provide the required information to process your feedback. We will ensure
           "track.natureLabel": "Uri:",
           "track.dateLabel": "Isinumite:",
           "track.notFound": "Walang ticket na natagpuan gamit ang reference number na iyon.",
-          "track.invalid": "Maling format. Gamitin ang ARTA-YYYY-XXXXX.",
+          "track.invalid": "Maling format. Gamitin ang DPAD-YYYY-XXXXX.",
           "success.title": "Natanggap ang Isinumite",
           "success.body": "Ang iyong DPAD reference number ay:",
           "success.note": "May ipinadalang email sa iyo. Gamitin ang numerong ito upang sundan ang iyong ticket.",
@@ -625,6 +601,7 @@ Please provide the required information to process your feedback. We will ensure
           "success.close": "Isara",
           "success.track": "Sundan ang Ticket",
           "status.Pending": "Nakabinbin",
+          "status.Validated": "Na-validate",
           "status.Under Review": "Sinusuri",
           "status.Resolved": "Nalutas",
           "err.emailInvalid": "Pakilagay ang wastong email address.",
@@ -660,7 +637,7 @@ Please provide the required information to process your feedback. We will ensure
             }).join("");
           }
         });
-        document.title = t("hero.heading") + " | ARTA Desk";
+        document.title = t("hero.heading") + " | DPAD Desk";
       }
 
       // ---------- Language toggle ----------
@@ -743,6 +720,24 @@ Please provide the required information to process your feedback. We will ensure
       var formSubNote = document.getElementById("formSubNote");
       var successNote = document.getElementById("successNote");
       var isAnon = false;
+      var districtSelect = document.getElementById("district");
+      var schoolSelect = document.getElementById("school_name");
+      var schoolOtherInput = document.getElementById("school_other_name");
+      var SCHOOL_OTHER_VALUE = "__other__";
+      var schoolOtherChosen = false;
+      var schoolReferenceOk = false;
+
+      function showSchoolFreeText() {
+        schoolOtherInput.placeholder = t("form.schoolOtherPlaceholder");
+        schoolOtherInput.classList.remove("hidden");
+        schoolSelect.classList.add("hidden");
+      }
+
+      function schoolFieldReady() {
+        if (!districtSelect.value) return schoolOtherInput.value.trim() !== "";
+        if (schoolOtherChosen) return schoolOtherInput.value.trim() !== "";
+        return schoolSelect.value !== "";
+      }
 
       var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -756,7 +751,7 @@ Please provide the required information to process your feedback. We will ensure
            otpInput.value.trim().length === 6);
         var ready =
           identityOk &&
-          document.getElementById("school_name").value.trim() !== "" &&
+          schoolFieldReady() &&
           document.getElementById("nature_of_request").value !== "" &&
           descInput.value.trim() !== "" &&
           captchaInput.value.trim() !== "" &&
@@ -772,7 +767,66 @@ Please provide the required information to process your feedback. We will ensure
         document.getElementById("descCount").textContent = descInput.value.length;
         checkSubmitReady();
       });
-      document.getElementById("school_name").addEventListener("input", checkSubmitReady);
+      schoolSelect.addEventListener("change", function () {
+        schoolOtherChosen = schoolSelect.value === SCHOOL_OTHER_VALUE;
+        schoolOtherInput.classList.toggle("hidden", !schoolOtherChosen);
+        if (schoolOtherChosen) schoolOtherInput.placeholder = t("form.schoolOtherPlaceholder");
+        checkSubmitReady();
+      });
+      schoolOtherInput.addEventListener("input", checkSubmitReady);
+      districtSelect.addEventListener("change", function () {
+        loadSchoolsForDistrict(districtSelect.value);
+        checkSubmitReady();
+      });
+
+      async function loadSchoolsForDistrict(district) {
+        schoolSelect.innerHTML = "";
+        schoolOtherChosen = false;
+        schoolOtherInput.classList.add("hidden");
+        var ph = document.createElement("option");
+        ph.value = "";
+        ph.textContent = t("form.selectSchool");
+        schoolSelect.appendChild(ph);
+        if (!district) { showSchoolFreeText(); checkSubmitReady(); return; }
+        schoolSelect.classList.remove("hidden");
+        try {
+          var res = await fetch("/api/schools?district=" + encodeURIComponent(district));
+          var data = await res.json();
+          if (!data.ok || !Array.isArray(data.schools)) throw new Error("bad");
+          data.schools.forEach(function (s) {
+            var opt = document.createElement("option");
+            opt.value = s.school_name;
+            opt.textContent = s.school_name;
+            schoolSelect.appendChild(opt);
+          });
+          var other = document.createElement("option");
+          other.value = SCHOOL_OTHER_VALUE;
+          other.textContent = t("form.schoolOther");
+          schoolSelect.appendChild(other);
+          schoolReferenceOk = true;
+        } catch (e) {
+          schoolReferenceOk = false;
+          showSchoolFreeText();
+        }
+        checkSubmitReady();
+      }
+
+      async function loadDistricts() {
+        try {
+          var res = await fetch("/api/schools");
+          var data = await res.json();
+          if (!data.ok || !Array.isArray(data.districts)) throw new Error("bad");
+          data.districts.forEach(function (d) {
+            var opt = document.createElement("option");
+            opt.value = d;
+            opt.textContent = d;
+            districtSelect.appendChild(opt);
+          });
+          schoolReferenceOk = true;
+        } catch (e) {
+          schoolReferenceOk = false;
+        }
+      }
       document.getElementById("nature_of_request").addEventListener("change", checkSubmitReady);
 
       emailInput.addEventListener("input", function () {
@@ -828,6 +882,10 @@ Please provide the required information to process your feedback. We will ensure
           formSubNote.textContent = t("form.sub");
         }
         form.reset();
+        districtSelect.value = "";
+        schoolOtherChosen = false;
+        schoolOtherInput.value = "";
+        showSchoolFreeText();
         otpField.classList.add("hidden");
         otpInput.value = "";
         otpStatus.classList.add("hidden");
@@ -950,6 +1008,12 @@ Please provide the required information to process your feedback. We will ensure
         if (submitBtn.disabled) { showFormError(t("err.fillAll")); return; }
 
         var formData = new FormData(form);
+        if (!districtSelect.value) {
+          formData.set("school_name", schoolOtherInput.value.trim());
+        } else if (schoolOtherChosen) {
+          formData.set("school_name", schoolOtherInput.value.trim());
+          formData.set("school_other", "1");
+        }
         formData.set("privacy_consent", "true");
         formData.set("captcha_session_id", captchaSessionId);
         if (isAnon) formData.set("anonymous", "true");
@@ -993,7 +1057,7 @@ Please provide the required information to process your feedback. We will ensure
       // ---------- Track ----------
       var trackBtn = document.getElementById("trackBtn");
       var trackError = document.getElementById("trackError");
-      var ARTA_RE = /^ARTA-\d{4}-\d{5}$/;
+      var DPAD_RE = /^DPAD-\d{4}-\d{5}$/;
 
       trackBtn.addEventListener("click", function () { trackTicket(document.getElementById("trackRef").value); });
       document.getElementById("trackRef").addEventListener("keydown", function (e) { if (e.key === "Enter") trackTicket(e.target.value); });
@@ -1003,7 +1067,7 @@ Please provide the required information to process your feedback. We will ensure
         document.getElementById("trackRef").value = ref;
         showError(trackError, "");
         document.getElementById("trackResult").classList.add("hidden");
-        if (!ARTA_RE.test(ref)) { showError(trackError, t("track.invalid")); return; }
+        if (!DPAD_RE.test(ref)) { showError(trackError, t("track.invalid")); return; }
 
         trackBtn.disabled = true;
         try {
@@ -1025,10 +1089,10 @@ Please provide the required information to process your feedback. We will ensure
           var badge = document.getElementById("trackStatusBadge");
           badge.textContent = t("status." + ticket.status);
           badge.className = "px-3 py-1 rounded-full text-sm font-bold text-white " +
-            (ticket.status === "Pending" ? "bg-amber-500" : ticket.status === "Under Review" ? "bg-sky-500" : "bg-emerald-600");
+            (ticket.status === "Pending" ? "bg-amber-500" : ticket.status === "Validated" ? "bg-violet-600" : ticket.status === "Under Review" ? "bg-sky-500" : "bg-emerald-600");
           var box = document.getElementById("trackResultBox");
           box.className = "rounded-xl border p-4 space-y-2 " +
-            (ticket.status === "Pending" ? "border-amber-300 bg-amber-50" : ticket.status === "Under Review" ? "border-sky-300 bg-sky-50" : "border-emerald-300 bg-emerald-50");
+            (ticket.status === "Pending" ? "border-amber-300 bg-amber-50" : ticket.status === "Validated" ? "border-violet-300 bg-violet-50" : ticket.status === "Under Review" ? "border-sky-300 bg-sky-50" : "border-emerald-300 bg-emerald-50");
           document.getElementById("trackResult").classList.remove("hidden");
         } catch (e3) {
           showError(trackError, t("err.generic"));
@@ -1115,6 +1179,8 @@ Please provide the required information to process your feedback. We will ensure
         navigator.serviceWorker.register("/sw.js").catch(function () {});
       }
 
+      showSchoolFreeText();
+      loadDistricts();
       applyI18n();    })();
   </script>
 
